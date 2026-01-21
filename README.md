@@ -4,23 +4,70 @@ REST API wrappers for Google services, designed for Seren Publisher integration.
 
 ## Services
 
-| Service | Port | Google API |
-|---------|------|------------|
-| **Gmail** | 8001 | `https://gmail.googleapis.com/gmail/v1` |
-| **Calendar** | 8002 | `https://www.googleapis.com/calendar/v3` |
+| Service | Port | Google API | Publisher Slug |
+|---------|------|------------|----------------|
+| **Gmail** | 8001 | `https://gmail.googleapis.com/gmail/v1` | `gmail` |
+| **Calendar** | 8002 | `https://www.googleapis.com/calendar/v3` | `google-calendar` |
 
 ## Architecture
 
 ```
-Agent → Seren Gateway → Publisher → This Service → Google API
-                            ↓
-                  Token Exchange (OAuth tokens from SerenDB)
+User/Agent → Seren Gateway → Publisher → This Service → Google API
+                  │                           │
+                  └── Token Exchange ─────────┘
+                      (Seren API key → Google access token)
 ```
 
-Each service:
-- Receives requests with user's Google OAuth access token (via `Authorization: Bearer`)
-- Proxies to Google's REST API
-- Returns Google's response
+### Authentication Flow
+
+1. **First-time authorization**: User visits `/auth/google` to authorize Google access
+2. **Token storage**: Refresh token stored (keyed by Seren user)
+3. **API calls**: Seren Gateway exchanges API key for Google access token via `/token/exchange`
+4. **Token refresh**: Access tokens refreshed automatically when expired
+
+## Endpoints
+
+### OAuth Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/auth/google` | Initiate Google OAuth flow |
+| GET | `/auth/google/callback` | OAuth callback, stores refresh token |
+| POST | `/token/exchange` | Exchange Seren API key for Google access token |
+
+### Gmail API (`/gmail`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/messages` | List messages (query params: `q`, `maxResults`, `pageToken`) |
+| GET | `/messages/{id}` | Get message by ID |
+| POST | `/messages/send` | Send email |
+| DELETE | `/messages/{id}` | Delete message |
+| POST | `/messages/{id}/trash` | Move to trash |
+| POST | `/messages/{id}/modify` | Add/remove labels |
+| GET | `/labels` | List labels |
+| GET | `/threads` | List threads |
+| GET | `/threads/{id}` | Get thread with messages |
+| GET | `/drafts` | List drafts |
+| POST | `/drafts` | Create draft |
+
+### Calendar API (`/calendar`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/calendars` | List calendars |
+| GET | `/calendars/{id}` | Get calendar |
+| GET | `/events` | List events (query params: `timeMin`, `timeMax`, `q`) |
+| GET | `/events/{id}` | Get event |
+| POST | `/events` | Create event |
+| PUT | `/events/{id}` | Update event |
+| PATCH | `/events/{id}` | Partial update event |
+| DELETE | `/events/{id}` | Delete event |
+| POST | `/quickAdd` | Create event from natural language |
+| POST | `/freebusy` | Query free/busy times |
+| GET | `/colors` | Get calendar colors |
 
 ## Local Development
 
@@ -48,10 +95,19 @@ docker build -t seren-calendar ./calendar
 ## Environment Variables
 
 ```bash
-# Optional - for local testing with service account
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
+# Required for OAuth flow
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=https://google-api.serendb.com/auth/google/callback
 
-# For production, tokens come via Authorization header from Seren Gateway
+# Database for token storage
+DATABASE_URL=postgresql://user:pass@host:5432/db
+
+# Encryption key for refresh tokens
+TOKEN_ENCRYPTION_KEY=your-32-byte-key
+
+# Optional - for local testing
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 ```
 
 ## Deployment
@@ -72,29 +128,35 @@ gcloud run deploy seren-calendar \
   --allow-unauthenticated
 ```
 
-## API Reference
+## Testing with Seren MCP
 
-### Gmail Service
+```bash
+# Check publisher health
+seren mcp call execute_paid_api --publisher gmail --method GET --path /health
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/messages` | List messages |
-| GET | `/messages/{id}` | Get message |
-| POST | `/messages/send` | Send message |
-| GET | `/labels` | List labels |
-| GET | `/threads` | List threads |
-| GET | `/threads/{id}` | Get thread |
+# List messages (requires OAuth authorization first)
+seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
+```
 
-### Calendar Service
+## OAuth Scopes
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/calendars` | List calendars |
-| GET | `/events` | List events |
-| GET | `/events/{id}` | Get event |
-| POST | `/events` | Create event |
-| PUT | `/events/{id}` | Update event |
-| DELETE | `/events/{id}` | Delete event |
-| POST | `/freebusy` | Query free/busy |
+**Gmail:**
+
+- `https://www.googleapis.com/auth/gmail.readonly`
+- `https://www.googleapis.com/auth/gmail.send`
+- `https://www.googleapis.com/auth/gmail.modify`
+
+**Calendar:**
+
+- `https://www.googleapis.com/auth/calendar`
+- `https://www.googleapis.com/auth/calendar.events`
+
+## Related
+
+- Seren Publishers: `gmail`, `google-calendar`
+- Seren Store: [serenorg/seren-store](https://github.com/serenorg/seren-store)
+- Backend API: [serenorg/serencore](https://github.com/serenorg/serencore)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
