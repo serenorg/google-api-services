@@ -1,4 +1,4 @@
-# Google API Services
+# Google API Services for SerenAI Publishers
 
 REST API wrappers for Google services, designed for Seren Publisher integration.
 
@@ -154,8 +154,7 @@ seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
 ## Related
 
 - Seren Publishers: `gmail`, `google-calendar`
-- Seren Store: [serenorg/seren-store](https://github.com/serenorg/seren-store)
-- Backend API: [serenorg/serencore](https://github.com/serenorg/serencore)
+- Backend API: [https://docs.serendb.com](https://docs.serendb.com)
 
 ## License
 
