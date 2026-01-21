@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  gmail:
+    build:
+      context: .
+      dockerfile: gmail/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  calendar:
+    build:
+      context: .
+      dockerfile: calendar/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
