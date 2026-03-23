@@ -10,6 +10,9 @@
 |---------|------|------------|
 | **Gmail** | 8001 | `https://gmail.googleapis.com/gmail/v1` |
 | **Calendar** | 8002 | `https://www.googleapis.com/calendar/v3` |
+| **Docs** | 8004 | `https://docs.googleapis.com/v1` |
+| **Sheets** | 8005 | `https://sheets.googleapis.com/v4` |
+| **Contacts** | 8006 | `https://people.googleapis.com/v1` |
 
 ## Architecture
 
@@ -32,7 +35,19 @@ uvicorn main:app --port 8001 --reload
 cd calendar && pip install -r requirements.txt
 uvicorn main:app --port 8002 --reload
 
-# Docker (both services)
+# Docs service
+cd docs && pip install -r requirements.txt
+uvicorn main:app --port 8004 --reload
+
+# Sheets service
+cd sheets && pip install -r requirements.txt
+uvicorn main:app --port 8005 --reload
+
+# Contacts service
+cd contacts && pip install -r requirements.txt
+uvicorn main:app --port 8006 --reload
+
+# Docker (all services)
 docker-compose up --build
 ```
 
@@ -44,6 +59,15 @@ gcloud run deploy seren-gmail --source ./gmail --region us-central1
 
 # Calendar
 gcloud run deploy seren-calendar --source ./calendar --region us-central1
+
+# Docs
+gcloud run deploy seren-docs --source ./docs --region us-central1
+
+# Sheets
+gcloud run deploy seren-sheets --source ./sheets --region us-central1
+
+# Contacts
+gcloud run deploy seren-contacts --source ./contacts --region us-central1
 ```
 
 ## Testing
@@ -59,9 +83,18 @@ curl -H "Authorization: Bearer <ACCESS_TOKEN>" http://localhost:8001/messages
 
 # List calendars
 curl -H "Authorization: Bearer <ACCESS_TOKEN>" http://localhost:8002/calendars
+
+# Get a document
+curl -H "Authorization: Bearer <ACCESS_TOKEN>" http://localhost:8004/documents/<DOC_ID>
+
+# Get spreadsheet values
+curl -H "Authorization: Bearer <ACCESS_TOKEN>" http://localhost:8005/spreadsheets/<SHEET_ID>/values/Sheet1!A1:D5
+
+# List contacts
+curl -H "Authorization: Bearer <ACCESS_TOKEN>" http://localhost:8006/contacts
 ```
 
 ## Related
 
-- Seren Publishers: `GMail`, `Google Calendar`
+- Seren Publishers: `GMail`, `Google Calendar`, `Google Docs`, `Google Sheets`, `Google Contacts`
 - Design doc: `seren-store/docs/Seren Agents/20260119_Ishan_seren_daily_task_agent.md`

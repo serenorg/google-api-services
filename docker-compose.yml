@@ -29,6 +29,48 @@ services:
       timeout: 10s
       retries: 3
 
+  docs:
+    build:
+      context: .
+      dockerfile: docs/Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  sheets:
+    build:
+      context: .
+      dockerfile: sheets/Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  contacts:
+    build:
+      context: .
+      dockerfile: contacts/Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   auth:
     build:
       context: .

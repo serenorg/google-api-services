@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Google API base URLs
     gmail_api_base: str = "https://gmail.googleapis.com/gmail/v1"
     calendar_api_base: str = "https://www.googleapis.com/calendar/v3"
+    docs_api_base: str = "https://docs.googleapis.com/v1"
+    sheets_api_base: str = "https://sheets.googleapis.com/v4"
+    contacts_api_base: str = "https://people.googleapis.com/v1"
 
     # OAuth token refresh endpoint
     google_token_url: str = "https://oauth2.googleapis.com/token"
