@@ -6,7 +6,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional, List
 
-from fastapi import FastAPI, Depends, HTTPException, Query, Body
+from fastapi import FastAPI, Depends, HTTPException, Query, Body, Request
 from fastapi.responses import JSONResponse
 import httpx
 
@@ -37,6 +37,42 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+def _query_value(request: Request, *names: str) -> Optional[str]:
+    """Return the first present query parameter value from a list of aliases."""
+    for name in names:
+        value = request.query_params.get(name)
+        if value is not None:
+            return value
+    return None
+
+
+def _query_bool(request: Request, default: bool, *names: str) -> bool:
+    """Parse a boolean query parameter while supporting alias fallbacks."""
+    value = _query_value(request, *names)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _query_int(request: Request, default: int, minimum: int, maximum: int, *names: str) -> int:
+    """Parse and range-check an integer query parameter from known aliases."""
+    value = _query_value(request, *names)
+    if value is None:
+        return default
+
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid integer for {'/'.join(names)}") from exc
+
+    if parsed < minimum or parsed > maximum:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Query parameter {'/'.join(names)} must be between {minimum} and {maximum}",
+        )
+    return parsed
 
 
 def get_calendar_client(token: str = Depends(get_token_from_header)) -> CalendarClient:
@@ -88,6 +124,7 @@ async def get_calendar(
 
 @app.get("/events")
 async def list_events(
+    request: Request,
     calendar_id: str = Query("primary", description="Calendar ID"),
     max_results: int = Query(250, ge=1, le=2500),
     page_token: Optional[str] = None,
@@ -101,6 +138,16 @@ async def list_events(
 ):
     """List events in a calendar."""
     try:
+        calendar_id = _query_value(request, "calendarId", "calendar_id") or calendar_id
+        max_results = _query_int(request, max_results, 1, 2500, "maxResults", "max_results")
+        page_token = _query_value(request, "pageToken", "page_token") or page_token
+        time_min = _query_value(request, "timeMin", "time_min") or time_min
+        time_max = _query_value(request, "timeMax", "time_max") or time_max
+        q = _query_value(request, "q") or q
+        single_events = _query_bool(request, single_events, "singleEvents", "single_events")
+        order_by = _query_value(request, "orderBy", "order_by") or order_by
+        show_deleted = _query_bool(request, show_deleted, "showDeleted", "show_deleted")
+
         return await client.list_events(
             calendar_id=calendar_id,
             max_results=max_results,
