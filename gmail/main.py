@@ -6,7 +6,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional, List
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 import httpx
 
@@ -44,6 +44,43 @@ def get_gmail_client(token: str = Depends(get_token_from_header)) -> GmailClient
     return GmailClient(access_token=token)
 
 
+def _query_value(request: Request, *names: str) -> Optional[str]:
+    """Return the first present query parameter value from a list of aliases."""
+    for name in names:
+        value = request.query_params.get(name)
+        if value is not None:
+            return value
+    return None
+
+
+def _query_values(request: Request, *names: str) -> Optional[List[str]]:
+    """Return the first non-empty query parameter list from a list of aliases."""
+    for name in names:
+        values = request.query_params.getlist(name)
+        if values:
+            return values
+    return None
+
+
+def _query_int(request: Request, default: int, minimum: int, maximum: int, *names: str) -> int:
+    """Parse and range-check an integer query parameter from known aliases."""
+    value = _query_value(request, *names)
+    if value is None:
+        return default
+
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid integer for {'/'.join(names)}") from exc
+
+    if parsed < minimum or parsed > maximum:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Query parameter {'/'.join(names)} must be between {minimum} and {maximum}",
+        )
+    return parsed
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -54,14 +91,20 @@ async def health_check():
 
 @app.get("/messages")
 async def list_messages(
-    max_results: int = Query(10, ge=1, le=500),
-    page_token: Optional[str] = None,
+    request: Request,
+    max_results: int = Query(10, ge=1, le=500, alias="maxResults"),
+    page_token: Optional[str] = Query(None, alias="pageToken"),
     q: Optional[str] = Query(None, description="Gmail search query"),
-    label_ids: Optional[List[str]] = Query(None),
+    label_ids: Optional[List[str]] = Query(None, alias="labelIds"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """List messages in user's mailbox."""
     try:
+        max_results = _query_int(request, max_results, 1, 500, "maxResults", "max_results")
+        page_token = _query_value(request, "pageToken", "page_token") or page_token
+        q = _query_value(request, "q") or q
+        label_ids = _query_values(request, "labelIds", "label_ids") or label_ids
+
         return await client.list_messages(
             max_results=max_results,
             page_token=page_token,
