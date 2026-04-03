@@ -118,7 +118,7 @@ async def list_messages(
 @app.get("/messages/{message_id}")
 async def get_message(
     message_id: str,
-    format: str = Query("full", enum=["minimal", "full", "raw", "metadata"]),
+    format: str = Query("full", alias="format", enum=["minimal", "full", "raw", "metadata"], description="Response format"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """Get a specific message by ID."""
@@ -170,13 +170,17 @@ async def trash_message(
 
 @app.post("/messages/{message_id}/modify")
 async def modify_message(
+    request: Request,
     message_id: str,
-    add_label_ids: Optional[List[str]] = Query(None),
-    remove_label_ids: Optional[List[str]] = Query(None),
+    add_label_ids: Optional[List[str]] = Query(None, alias="addLabelIds"),
+    remove_label_ids: Optional[List[str]] = Query(None, alias="removeLabelIds"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """Modify message labels."""
     try:
+        add_label_ids = _query_values(request, "addLabelIds", "add_label_ids") or add_label_ids
+        remove_label_ids = _query_values(request, "removeLabelIds", "remove_label_ids") or remove_label_ids
+
         return await client.modify_message(
             message_id=message_id,
             add_label_ids=add_label_ids,
@@ -244,13 +248,18 @@ async def delete_label(
 
 @app.get("/threads")
 async def list_threads(
-    max_results: int = Query(10, ge=1, le=500),
-    page_token: Optional[str] = None,
+    request: Request,
+    max_results: int = Query(10, ge=1, le=500, alias="maxResults"),
+    page_token: Optional[str] = Query(None, alias="pageToken"),
     q: Optional[str] = Query(None, description="Gmail search query"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """List threads in user's mailbox."""
     try:
+        max_results = _query_int(request, max_results, 1, 500, "maxResults", "max_results")
+        page_token = _query_value(request, "pageToken", "page_token") or page_token
+        q = _query_value(request, "q") or q
+
         return await client.list_threads(
             max_results=max_results,
             page_token=page_token,
@@ -263,7 +272,7 @@ async def list_threads(
 @app.get("/threads/{thread_id}")
 async def get_thread(
     thread_id: str,
-    format: str = Query("full", enum=["minimal", "full", "metadata"]),
+    format: str = Query("full", alias="format", enum=["minimal", "full", "metadata"], description="Response format"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """Get a specific thread."""
@@ -289,12 +298,16 @@ async def trash_thread(
 
 @app.get("/drafts")
 async def list_drafts(
-    max_results: int = Query(10, ge=1, le=500),
-    page_token: Optional[str] = None,
+    request: Request,
+    max_results: int = Query(10, ge=1, le=500, alias="maxResults"),
+    page_token: Optional[str] = Query(None, alias="pageToken"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """List drafts."""
     try:
+        max_results = _query_int(request, max_results, 1, 500, "maxResults", "max_results")
+        page_token = _query_value(request, "pageToken", "page_token") or page_token
+
         return await client.list_drafts(max_results=max_results, page_token=page_token)
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
