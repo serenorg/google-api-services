@@ -81,6 +81,14 @@ def _query_int(request: Request, default: int, minimum: int, maximum: int, *name
     return parsed
 
 
+def _query_bool(request: Request, default: bool, *names: str) -> bool:
+    """Parse a boolean query parameter while supporting alias fallbacks."""
+    value = _query_value(request, *names)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -96,20 +104,28 @@ async def list_messages(
     page_token: Optional[str] = Query(None, alias="pageToken"),
     q: Optional[str] = Query(None, description="Gmail search query"),
     label_ids: Optional[List[str]] = Query(None, alias="labelIds"),
+    enriched: bool = Query(True, description="Include snippet/from/subject/date for each message"),
     client: GmailClient = Depends(get_gmail_client),
 ):
-    """List messages in user's mailbox."""
+    """List messages in user's mailbox.
+
+    By default each message stub is enriched with snippet/from/to/subject/date
+    so agents can identify results without per-message follow-up calls. Pass
+    ``enriched=false`` to opt out and get the raw Gmail list shape.
+    """
     try:
         max_results = _query_int(request, max_results, 1, 500, "maxResults", "max_results")
         page_token = _query_value(request, "pageToken", "page_token") or page_token
         q = _query_value(request, "q") or q
         label_ids = _query_values(request, "labelIds", "label_ids") or label_ids
+        enriched = _query_bool(request, enriched, "enriched")
 
         return await client.list_messages(
             max_results=max_results,
             page_token=page_token,
             q=q,
             label_ids=label_ids,
+            enriched=enriched,
         )
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
@@ -252,18 +268,26 @@ async def list_threads(
     max_results: int = Query(10, ge=1, le=500, alias="maxResults"),
     page_token: Optional[str] = Query(None, alias="pageToken"),
     q: Optional[str] = Query(None, description="Gmail search query"),
+    enriched: bool = Query(True, description="Include from/to/subject/date for each thread"),
     client: GmailClient = Depends(get_gmail_client),
 ):
-    """List threads in user's mailbox."""
+    """List threads in user's mailbox.
+
+    By default each thread is enriched with from/to/subject/date taken from
+    the most recent message in the thread. Pass ``enriched=false`` to opt
+    out and get the raw Gmail thread list shape.
+    """
     try:
         max_results = _query_int(request, max_results, 1, 500, "maxResults", "max_results")
         page_token = _query_value(request, "pageToken", "page_token") or page_token
         q = _query_value(request, "q") or q
+        enriched = _query_bool(request, enriched, "enriched")
 
         return await client.list_threads(
             max_results=max_results,
             page_token=page_token,
             q=q,
+            enriched=enriched,
         )
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
@@ -301,14 +325,24 @@ async def list_drafts(
     request: Request,
     max_results: int = Query(10, ge=1, le=500, alias="maxResults"),
     page_token: Optional[str] = Query(None, alias="pageToken"),
+    enriched: bool = Query(True, description="Include snippet/to/subject/date for each draft"),
     client: GmailClient = Depends(get_gmail_client),
 ):
-    """List drafts."""
+    """List drafts.
+
+    By default each draft is enriched with snippet/to/subject/date from the
+    underlying message. Pass ``enriched=false`` to opt out.
+    """
     try:
         max_results = _query_int(request, max_results, 1, 500, "maxResults", "max_results")
         page_token = _query_value(request, "pageToken", "page_token") or page_token
+        enriched = _query_bool(request, enriched, "enriched")
 
-        return await client.list_drafts(max_results=max_results, page_token=page_token)
+        return await client.list_drafts(
+            max_results=max_results,
+            page_token=page_token,
+            enriched=enriched,
+        )
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
 
