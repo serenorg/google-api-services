@@ -48,6 +48,7 @@ class ListMessagesQueryParamTests(unittest.TestCase):
                 "page_token": "next-page",
                 "q": "from:harris rendero",
                 "label_ids": ["INBOX", "UNREAD"],
+                "enriched": True,
             },
         )
 
