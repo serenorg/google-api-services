@@ -15,7 +15,7 @@ from shared.auth import get_token_from_header
 from shared.config import get_settings
 
 from client import GmailClient
-from models import SendMessageRequest
+from models import SendMessageRequest, FriendlySendRequest
 
 # Configure logging
 settings = get_settings()
@@ -153,6 +153,42 @@ async def send_message(
     try:
         return await client.send_message(
             raw=request.raw,
+            thread_id=request.thread_id,
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
+@app.post("/send")
+async def send_friendly(
+    request: FriendlySendRequest,
+    client: GmailClient = Depends(get_gmail_client),
+):
+    """Send an email with structured to/subject/body fields.
+
+    This is the recommended endpoint for AI agents. The server constructs
+    the RFC 2822 message and base64url-encodes it automatically.
+    """
+    import base64
+    from email.mime.text import MIMEText
+
+    mime = MIMEText(request.body, "plain", "utf-8")
+    mime["To"] = request.to
+    mime["Subject"] = request.subject
+    if request.cc:
+        mime["Cc"] = request.cc
+    if request.bcc:
+        mime["Bcc"] = request.bcc
+    if request.in_reply_to:
+        mime["In-Reply-To"] = request.in_reply_to
+    if request.references:
+        mime["References"] = request.references
+
+    raw = base64.urlsafe_b64encode(mime.as_bytes()).decode("ascii")
+
+    try:
+        return await client.send_message(
+            raw=raw,
             thread_id=request.thread_id,
         )
     except httpx.HTTPStatusError as e:
