@@ -87,6 +87,18 @@ class SendMessageRequest(BaseModel):
     thread_id: Optional[str] = Field(None, alias="threadId", description="Thread ID to reply to")
 
 
+class FriendlySendRequest(BaseModel):
+    """Agent-friendly request to send an email with structured fields."""
+    to: str = Field(..., description="Recipient email address(es), comma-separated for multiple")
+    subject: str = Field(..., description="Email subject line")
+    body: str = Field(..., description="Email body (plain text)")
+    cc: Optional[str] = Field(None, description="CC recipients, comma-separated")
+    bcc: Optional[str] = Field(None, description="BCC recipients, comma-separated")
+    thread_id: Optional[str] = Field(None, alias="threadId", description="Thread ID to reply to")
+    in_reply_to: Optional[str] = Field(None, alias="inReplyTo", description="Message-ID header of the message being replied to")
+    references: Optional[str] = Field(None, description="References header for threading")
+
+
 class DraftRequest(BaseModel):
     """Request to create a draft."""
     message: SendMessageRequest
