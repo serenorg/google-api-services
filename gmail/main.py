@@ -144,6 +144,27 @@ async def get_message(
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
 
 
+@app.get("/messages/{message_id}/attachments/{attachment_id}")
+async def get_attachment(
+    message_id: str,
+    attachment_id: str,
+    client: GmailClient = Depends(get_gmail_client),
+):
+    """Download a specific attachment from a message.
+
+    Proxies Gmail's ``users.messages.attachments.get`` endpoint. The response
+    payload matches the Gmail API MessagePartBody shape, with ``data`` holding
+    the base64url-encoded attachment bytes.
+    """
+    try:
+        return await client.get_attachment(
+            message_id=message_id,
+            attachment_id=attachment_id,
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
 @app.post("/messages/send")
 async def send_message(
     request: SendMessageRequest,

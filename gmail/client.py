@@ -193,6 +193,22 @@ class GmailClient:
         params = {"format": format}
         return await self._request("GET", f"/users/{user_id}/messages/{message_id}", params=params)
 
+    async def get_attachment(
+        self,
+        message_id: str,
+        attachment_id: str,
+        user_id: str = "me",
+    ) -> Dict[str, Any]:
+        """Download a specific attachment from a message.
+
+        Returns Gmail's MessagePartBody shape: {"size": int, "data": str}
+        where ``data`` is base64url-encoded attachment bytes.
+        """
+        return await self._request(
+            "GET",
+            f"/users/{user_id}/messages/{message_id}/attachments/{attachment_id}",
+        )
+
     async def send_message(
         self,
         raw: str,
