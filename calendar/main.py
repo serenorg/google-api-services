@@ -90,14 +90,20 @@ async def health_check():
 
 @app.get("/calendars")
 async def list_calendars(
-    max_results: int = Query(100, ge=1, le=250),
-    page_token: Optional[str] = None,
-    show_deleted: bool = False,
-    show_hidden: bool = False,
+    request: Request,
+    max_results: int = Query(100, ge=1, le=250, alias="maxResults"),
+    page_token: Optional[str] = Query(None, alias="pageToken"),
+    show_deleted: bool = Query(False, alias="showDeleted"),
+    show_hidden: bool = Query(False, alias="showHidden"),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """List calendars the user has access to."""
     try:
+        max_results = _query_int(request, max_results, 1, 250, "maxResults", "max_results")
+        page_token = _query_value(request, "pageToken", "page_token") or page_token
+        show_deleted = _query_bool(request, show_deleted, "showDeleted", "show_deleted")
+        show_hidden = _query_bool(request, show_hidden, "showHidden", "show_hidden")
+
         return await client.list_calendars(
             max_results=max_results,
             page_token=page_token,
@@ -125,15 +131,15 @@ async def get_calendar(
 @app.get("/events")
 async def list_events(
     request: Request,
-    calendar_id: str = Query("primary", description="Calendar ID"),
-    max_results: int = Query(250, ge=1, le=2500),
-    page_token: Optional[str] = None,
-    time_min: Optional[str] = Query(None, description="Lower bound (RFC3339)"),
-    time_max: Optional[str] = Query(None, description="Upper bound (RFC3339)"),
+    calendar_id: str = Query("primary", alias="calendarId", description="Calendar ID"),
+    max_results: int = Query(250, ge=1, le=2500, alias="maxResults"),
+    page_token: Optional[str] = Query(None, alias="pageToken"),
+    time_min: Optional[str] = Query(None, alias="timeMin", description="Lower bound (RFC3339)"),
+    time_max: Optional[str] = Query(None, alias="timeMax", description="Upper bound (RFC3339)"),
     q: Optional[str] = Query(None, description="Search query"),
-    single_events: bool = Query(True, description="Expand recurring events"),
-    order_by: str = Query("startTime", enum=["startTime", "updated"]),
-    show_deleted: bool = False,
+    single_events: bool = Query(True, alias="singleEvents", description="Expand recurring events"),
+    order_by: str = Query("startTime", alias="orderBy", enum=["startTime", "updated"]),
+    show_deleted: bool = Query(False, alias="showDeleted"),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """List events in a calendar."""
@@ -166,7 +172,7 @@ async def list_events(
 @app.get("/events/{event_id}")
 async def get_event(
     event_id: str,
-    calendar_id: str = Query("primary"),
+    calendar_id: str = Query("primary", alias="calendarId"),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Get a specific event by ID."""
@@ -179,8 +185,8 @@ async def get_event(
 @app.post("/events")
 async def create_event(
     request: CreateEventRequest,
-    calendar_id: str = Query("primary"),
-    send_updates: str = Query("none", enum=["all", "externalOnly", "none"]),
+    calendar_id: str = Query("primary", alias="calendarId"),
+    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Create a new event."""
@@ -199,8 +205,8 @@ async def create_event(
 async def update_event(
     event_id: str,
     request: UpdateEventRequest,
-    calendar_id: str = Query("primary"),
-    send_updates: str = Query("none", enum=["all", "externalOnly", "none"]),
+    calendar_id: str = Query("primary", alias="calendarId"),
+    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Update an existing event (full update)."""
@@ -220,8 +226,8 @@ async def update_event(
 async def patch_event(
     event_id: str,
     request: UpdateEventRequest,
-    calendar_id: str = Query("primary"),
-    send_updates: str = Query("none", enum=["all", "externalOnly", "none"]),
+    calendar_id: str = Query("primary", alias="calendarId"),
+    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Patch an existing event (partial update)."""
@@ -240,8 +246,8 @@ async def patch_event(
 @app.delete("/events/{event_id}")
 async def delete_event(
     event_id: str,
-    calendar_id: str = Query("primary"),
-    send_updates: str = Query("none", enum=["all", "externalOnly", "none"]),
+    calendar_id: str = Query("primary", alias="calendarId"),
+    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Delete an event."""
@@ -261,7 +267,7 @@ async def move_event(
     event_id: str,
     destination: str = Query(..., description="Destination calendar ID"),
     source_calendar_id: str = Query("primary", alias="source"),
-    send_updates: str = Query("none", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Move an event to another calendar."""
@@ -281,8 +287,8 @@ async def move_event(
 @app.post("/quickAdd")
 async def quick_add_event(
     text: str = Query(..., description="Natural language event description"),
-    calendar_id: str = Query("primary"),
-    send_updates: str = Query("none", enum=["all", "externalOnly", "none"]),
+    calendar_id: str = Query("primary", alias="calendarId"),
+    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Create event from natural language text."""
@@ -331,16 +337,23 @@ async def get_colors(client: CalendarClient = Depends(get_calendar_client)):
 
 @app.get("/events/{event_id}/instances")
 async def list_event_instances(
+    request: Request,
     event_id: str,
-    calendar_id: str = Query("primary"),
-    max_results: int = Query(250, ge=1, le=2500),
-    page_token: Optional[str] = None,
-    time_min: Optional[str] = Query(None, description="Lower bound (RFC3339)"),
-    time_max: Optional[str] = Query(None, description="Upper bound (RFC3339)"),
+    calendar_id: str = Query("primary", alias="calendarId"),
+    max_results: int = Query(250, ge=1, le=2500, alias="maxResults"),
+    page_token: Optional[str] = Query(None, alias="pageToken"),
+    time_min: Optional[str] = Query(None, alias="timeMin", description="Lower bound (RFC3339)"),
+    time_max: Optional[str] = Query(None, alias="timeMax", description="Upper bound (RFC3339)"),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """List instances of a recurring event."""
     try:
+        calendar_id = _query_value(request, "calendarId", "calendar_id") or calendar_id
+        max_results = _query_int(request, max_results, 1, 2500, "maxResults", "max_results")
+        page_token = _query_value(request, "pageToken", "page_token") or page_token
+        time_min = _query_value(request, "timeMin", "time_min") or time_min
+        time_max = _query_value(request, "timeMax", "time_max") or time_max
+
         return await client.list_instances(
             event_id=event_id,
             calendar_id=calendar_id,
