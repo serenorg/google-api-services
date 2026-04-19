@@ -23,6 +23,24 @@ class ListEventsQueryParamTests(unittest.TestCase):
     def tearDown(self):
         calendar_main.app.dependency_overrides.clear()
 
+    def test_openapi_exposes_google_style_query_parameters_for_events(self):
+        operation = calendar_main.app.openapi()["paths"]["/events"]["get"]
+        names = {p["name"] for p in operation["parameters"]}
+        self.assertTrue(
+            {
+                "calendarId",
+                "maxResults",
+                "pageToken",
+                "timeMin",
+                "timeMax",
+                "q",
+                "singleEvents",
+                "orderBy",
+                "showDeleted",
+            }.issubset(names),
+            f"missing camelCase aliases. got: {sorted(names)}",
+        )
+
     def test_list_events_accepts_google_style_query_parameter_names(self):
         response = self.client.get(
             "/events",
