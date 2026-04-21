@@ -1,12 +1,30 @@
 steps:
+  # Build with both :$COMMIT_SHA (traceable) and :latest (convenience) tags.
+  # auth service is self-contained (no shared/ dependency), so the build
+  # context is ./auth, unlike the other Google API services.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-google-auth:$COMMIT_SHA'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-google-auth:latest'
       - '-f'
       - 'auth/Dockerfile'
       - './auth'
 
+  # Roll out the exact digest that was just built.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'seren-google-auth'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-google-auth:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--quiet'
+
 images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-google-auth:$COMMIT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-google-auth:latest'

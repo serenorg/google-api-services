@@ -1,12 +1,29 @@
 steps:
+  # Build with both :$COMMIT_SHA (traceable) and :latest (convenience) tags.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-gmail:$COMMIT_SHA'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-gmail:latest'
       - '-f'
       - 'gmail/Dockerfile'
       - '.'
 
+  # Roll out the exact digest that was just built. Pinning to $COMMIT_SHA
+  # (not :latest) makes the rollout deterministic and rollback by SHA trivial.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'seren-gmail'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-gmail:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--quiet'
+
 images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-gmail:$COMMIT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-gmail:latest'

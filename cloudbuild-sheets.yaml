@@ -1,12 +1,28 @@
 steps:
+  # Build with both :$COMMIT_SHA (traceable) and :latest (convenience) tags.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-sheets:$COMMIT_SHA'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-sheets:latest'
       - '-f'
       - 'sheets/Dockerfile'
       - '.'
 
+  # Roll out the exact digest that was just built.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'seren-sheets'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-sheets:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--quiet'
+
 images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-sheets:$COMMIT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-sheets:latest'
