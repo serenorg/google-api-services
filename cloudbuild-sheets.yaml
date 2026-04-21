@@ -11,6 +11,12 @@ steps:
       - 'sheets/Dockerfile'
       - '.'
 
+  # Push the SHA tag BEFORE the deploy step so gcloud can pull it.
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-sheets:$COMMIT_SHA'
+
   # Roll out the exact digest that was just built.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'

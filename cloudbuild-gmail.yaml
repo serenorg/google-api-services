@@ -11,6 +11,14 @@ steps:
       - 'gmail/Dockerfile'
       - '.'
 
+  # Push the SHA tag BEFORE the deploy step so gcloud can pull it.
+  # (Cloud Build only auto-pushes `images:` after the whole build finishes,
+  # which is too late for a deploy step that needs the image.)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-gmail:$COMMIT_SHA'
+
   # Roll out the exact digest that was just built. Pinning to $COMMIT_SHA
   # (not :latest) makes the rollout deterministic and rollback by SHA trivial.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'

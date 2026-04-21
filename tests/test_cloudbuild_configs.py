@@ -55,6 +55,35 @@ class CloudBuildDeployCoverageTests(unittest.TestCase):
             f"(they only build+push, production will not roll out): {missing_deploy}",
         )
 
+    def test_push_step_precedes_deploy_step(self):
+        """A docker push step must appear before the deploy step.
+
+        Cloud Build's top-level `images:` section only pushes at the END of
+        the build, so a deploy step that references an image built earlier
+        in the pipeline must have an explicit `docker push` step in between
+        — otherwise `gcloud run deploy` fails with 'Image not found' when
+        it tries to pull from Artifact Registry. We hit this in the first
+        CI run after #16 landed.
+        """
+        offenders: list[str] = []
+        for config in sorted(REPO_ROOT.glob(CLOUDBUILD_GLOB)):
+            text = config.read_text()
+            if "'deploy'" not in text:
+                continue
+            push_pos = text.find("'push'")
+            deploy_pos = text.find("'deploy'")
+            # Both must be present AND push must come first.
+            if push_pos == -1 or push_pos > deploy_pos:
+                offenders.append(config.name)
+
+        self.assertEqual(
+            offenders,
+            [],
+            "cloudbuild files missing a `docker push` step before the deploy "
+            "step (deploy will fail with 'Image not found' because Cloud Build "
+            f"only auto-pushes `images:` after the whole build finishes): {offenders}",
+        )
+
     def test_deploy_pins_image_to_commit_sha(self):
         """Deploys must reference $COMMIT_SHA, not :latest.
 
