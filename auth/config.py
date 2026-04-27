@@ -21,14 +21,20 @@ class Settings(BaseSettings):
     google_token_url: str = "https://oauth2.googleapis.com/token"
     google_userinfo_url: str = "https://www.googleapis.com/oauth2/v2/userinfo"
 
-    # OAuth scopes for Gmail and Calendar
+    # OAuth scopes for Gmail, Calendar, Drive, and Docs.
+    # Drive scopes are required so the Docs/Drive publishers can discover
+    # documents via files.list and export content via files.export
+    # (issue #18 — ACCESS_TOKEN_SCOPE_INSUFFICIENT on DriveFiles.List).
     google_scopes: str = (
         "openid email profile "
         "https://www.googleapis.com/auth/gmail.readonly "
         "https://www.googleapis.com/auth/gmail.send "
         "https://www.googleapis.com/auth/gmail.modify "
         "https://www.googleapis.com/auth/calendar "
-        "https://www.googleapis.com/auth/calendar.events"
+        "https://www.googleapis.com/auth/calendar.events "
+        "https://www.googleapis.com/auth/drive.metadata.readonly "
+        "https://www.googleapis.com/auth/drive.readonly "
+        "https://www.googleapis.com/auth/documents.readonly"
     )
 
     # Database for token storage

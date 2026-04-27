@@ -151,6 +151,16 @@ seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
 - `https://www.googleapis.com/auth/calendar`
 - `https://www.googleapis.com/auth/calendar.events`
 
+**Drive / Docs:**
+
+- `https://www.googleapis.com/auth/drive.metadata.readonly` — required for `files.list` discovery/search
+- `https://www.googleapis.com/auth/drive.readonly` — required for `files.export` content download
+- `https://www.googleapis.com/auth/documents.readonly` — required for Docs API read by document ID
+
+> **Re-consent required after scope changes.** Existing refresh tokens do not
+> automatically gain newly added scopes — affected users must run the OAuth
+> flow again so a refresh token with the expanded scope set is stored.
+
 ## Related
 
 - Seren Publishers: `gmail`, `google-calendar`
