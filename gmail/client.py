@@ -252,6 +252,34 @@ class GmailClient:
             body["removeLabelIds"] = remove_label_ids
         return await self._request("POST", f"/users/{user_id}/messages/{message_id}/modify", json=body)
 
+    async def batch_modify_messages(
+        self,
+        ids: List[str],
+        add_label_ids: Optional[List[str]] = None,
+        remove_label_ids: Optional[List[str]] = None,
+        user_id: str = "me",
+    ) -> None:
+        """Apply label changes to up to 1000 messages in one Gmail call.
+
+        Wraps Gmail's ``users.messages.batchModify`` endpoint, which returns
+        204 No Content on success.
+        """
+        body: Dict[str, Any] = {"ids": ids}
+        if add_label_ids:
+            body["addLabelIds"] = add_label_ids
+        if remove_label_ids:
+            body["removeLabelIds"] = remove_label_ids
+
+        url = f"{self.base_url}/users/{user_id}/messages/batchModify"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=self._headers(),
+                json=body,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+
     # Labels
 
     async def list_labels(self, user_id: str = "me") -> Dict[str, Any]:
