@@ -89,6 +89,40 @@ def _query_bool(request: Request, default: bool, *names: str) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
+async def _json_body(request: Request) -> dict:
+    """Best-effort parse of a JSON request body.
+
+    Gmail's canonical API shape sends modify/label parameters in the JSON
+    body. Earlier versions of these routes only read query params, which
+    silently dropped body fields. We now accept either: body wins when
+    both are present, query params remain a working fallback.
+    """
+    if not request.headers.get("content-type", "").lower().startswith("application/json"):
+        return {}
+    try:
+        data = await request.json()
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _coerce_str_list(value) -> Optional[List[str]]:
+    """Coerce a JSON body value into a list[str], or None if unusable.
+
+    Accepts a list of strings or a single string. Returns None for missing,
+    empty, or non-string entries so callers can chain ``or`` against query
+    params without false positives.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [value] if value else None
+    if isinstance(value, list):
+        coerced = [v for v in value if isinstance(v, str)]
+        return coerced or None
+    return None
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -249,16 +283,73 @@ async def modify_message(
     remove_label_ids: Optional[List[str]] = Query(None, alias="removeLabelIds"),
     client: GmailClient = Depends(get_gmail_client),
 ):
-    """Modify message labels."""
+    """Modify message labels.
+
+    Accepts ``addLabelIds`` / ``removeLabelIds`` from the JSON body
+    (canonical Gmail API shape) or from repeated query params. Body wins
+    when both are present.
+    """
     try:
-        add_label_ids = _query_values(request, "addLabelIds", "add_label_ids") or add_label_ids
-        remove_label_ids = _query_values(request, "removeLabelIds", "remove_label_ids") or remove_label_ids
+        body = await _json_body(request)
+
+        add_label_ids = (
+            _coerce_str_list(body.get("addLabelIds"))
+            or _coerce_str_list(body.get("add_label_ids"))
+            or _query_values(request, "addLabelIds", "add_label_ids")
+            or add_label_ids
+        )
+        remove_label_ids = (
+            _coerce_str_list(body.get("removeLabelIds"))
+            or _coerce_str_list(body.get("remove_label_ids"))
+            or _query_values(request, "removeLabelIds", "remove_label_ids")
+            or remove_label_ids
+        )
 
         return await client.modify_message(
             message_id=message_id,
             add_label_ids=add_label_ids,
             remove_label_ids=remove_label_ids,
         )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
+@app.post("/messages/batchModify")
+async def batch_modify_messages(
+    request: Request,
+    client: GmailClient = Depends(get_gmail_client),
+):
+    """Batch-modify labels on up to 1000 messages in a single Gmail call.
+
+    Body shape matches Gmail's ``users.messages.batchModify``:
+    ``{"ids": [...], "addLabelIds": [...], "removeLabelIds": [...]}``.
+    Reduces gateway load for sweeps that would otherwise issue N
+    individual ``/messages/{id}/modify`` calls.
+    """
+    body = await _json_body(request)
+
+    ids = _coerce_str_list(body.get("ids"))
+    if not ids:
+        raise HTTPException(status_code=422, detail="ids must be a non-empty list of message IDs")
+    if len(ids) > 1000:
+        raise HTTPException(status_code=422, detail="ids may contain at most 1000 entries")
+
+    add_label_ids = _coerce_str_list(body.get("addLabelIds")) or _coerce_str_list(body.get("add_label_ids"))
+    remove_label_ids = _coerce_str_list(body.get("removeLabelIds")) or _coerce_str_list(body.get("remove_label_ids"))
+
+    if not add_label_ids and not remove_label_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one of addLabelIds or removeLabelIds must be provided",
+        )
+
+    try:
+        await client.batch_modify_messages(
+            ids=ids,
+            add_label_ids=add_label_ids,
+            remove_label_ids=remove_label_ids,
+        )
+        return {"status": "ok", "count": len(ids)}
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
 
@@ -288,12 +379,43 @@ async def get_label(
 
 @app.post("/labels")
 async def create_label(
-    name: str,
-    message_list_visibility: str = "show",
-    label_list_visibility: str = "labelShow",
+    request: Request,
+    name: Optional[str] = Query(None),
+    message_list_visibility: Optional[str] = Query(None, alias="messageListVisibility"),
+    label_list_visibility: Optional[str] = Query(None, alias="labelListVisibility"),
     client: GmailClient = Depends(get_gmail_client),
 ):
-    """Create a new label."""
+    """Create a new label.
+
+    Accepts ``name`` / ``messageListVisibility`` / ``labelListVisibility``
+    in the JSON body (canonical Gmail API shape) or as query params. Body
+    wins when both are present.
+    """
+    body = await _json_body(request)
+
+    name = (
+        body.get("name")
+        or _query_value(request, "name")
+        or name
+    )
+    if not isinstance(name, str) or not name:
+        raise HTTPException(status_code=422, detail="name is required")
+
+    message_list_visibility = (
+        body.get("messageListVisibility")
+        or body.get("message_list_visibility")
+        or _query_value(request, "messageListVisibility", "message_list_visibility")
+        or message_list_visibility
+        or "show"
+    )
+    label_list_visibility = (
+        body.get("labelListVisibility")
+        or body.get("label_list_visibility")
+        or _query_value(request, "labelListVisibility", "label_list_visibility")
+        or label_list_visibility
+        or "labelShow"
+    )
+
     try:
         return await client.create_label(
             name=name,
