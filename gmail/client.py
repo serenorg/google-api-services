@@ -503,3 +503,39 @@ class GmailClient:
         """Send a draft."""
         body = {"id": draft_id}
         return await self._request("POST", f"/users/{user_id}/drafts/send", json=body)
+
+    async def update_draft(
+        self,
+        draft_id: str,
+        raw: str,
+        thread_id: Optional[str] = None,
+        user_id: str = "me",
+    ) -> Dict[str, Any]:
+        """Replace the contents of an existing draft.
+
+        Wraps Gmail's ``users.drafts.update`` (HTTP PUT). The Gmail API does
+        not expose a PATCH for drafts; the entire message body is replaced.
+        """
+        message: Dict[str, Any] = {"raw": raw}
+        if thread_id:
+            message["threadId"] = thread_id
+        body = {"message": message}
+        return await self._request("PUT", f"/users/{user_id}/drafts/{draft_id}", json=body)
+
+    async def delete_draft(
+        self,
+        draft_id: str,
+        user_id: str = "me",
+    ) -> None:
+        """Permanently delete a draft.
+
+        Wraps Gmail's ``users.drafts.delete`` which returns 204 No Content.
+        """
+        url = f"{self.base_url}/users/{user_id}/drafts/{draft_id}"
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                url,
+                headers=self._headers(),
+                timeout=self.timeout,
+            )
+            response.raise_for_status()

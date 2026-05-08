@@ -104,5 +104,11 @@ class DraftRequest(BaseModel):
     message: SendMessageRequest
 
 
+class UpdateDraftRequest(BaseModel):
+    """Request to replace the contents of an existing draft."""
+    raw: str = Field(..., description="Base64url encoded email message (RFC 2822)")
+    thread_id: Optional[str] = Field(None, alias="threadId", description="Thread ID to keep the draft attached to")
+
+
 # Enable forward references for recursive MessagePart
 MessagePart.model_rebuild()
