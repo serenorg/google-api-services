@@ -15,7 +15,7 @@ from shared.auth import get_token_from_header
 from shared.config import get_settings
 
 from client import GmailClient
-from models import SendMessageRequest, FriendlySendRequest
+from models import SendMessageRequest, FriendlySendRequest, UpdateDraftRequest
 
 # Configure logging
 settings = get_settings()
@@ -546,6 +546,41 @@ async def send_draft(
     """Send a draft."""
     try:
         return await client.send_draft(draft_id=draft_id)
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
+@app.put("/drafts/{draft_id}")
+async def update_draft(
+    draft_id: str,
+    request: UpdateDraftRequest,
+    client: GmailClient = Depends(get_gmail_client),
+):
+    """Replace the contents of an existing draft.
+
+    Mirrors Gmail's ``users.drafts.update`` (PUT). Body shape is
+    ``{"raw": "<base64url>", "threadId": "<optional>"}``. Returns the
+    updated draft, matching the response shape of ``POST /drafts``.
+    """
+    try:
+        return await client.update_draft(
+            draft_id=draft_id,
+            raw=request.raw,
+            thread_id=request.thread_id,
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
+@app.delete("/drafts/{draft_id}", status_code=204)
+async def delete_draft(
+    draft_id: str,
+    client: GmailClient = Depends(get_gmail_client),
+):
+    """Permanently delete a draft. Returns 204 on success, 404 if missing."""
+    try:
+        await client.delete_draft(draft_id=draft_id)
+        return None
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
 
