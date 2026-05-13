@@ -151,11 +151,28 @@ seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
 - `https://www.googleapis.com/auth/calendar`
 - `https://www.googleapis.com/auth/calendar.events`
 
-**Drive / Docs:**
+**Contacts:**
 
-- `https://www.googleapis.com/auth/drive.metadata.readonly` — required for `files.list` discovery/search
-- `https://www.googleapis.com/auth/drive.readonly` — required for `files.export` content download
-- `https://www.googleapis.com/auth/documents.readonly` — required for Docs API read by document ID
+- `https://www.googleapis.com/auth/contacts.readonly`
+
+**Sheets:**
+
+- `https://www.googleapis.com/auth/spreadsheets` — full read/write for the Sheets publisher
+
+**Docs:**
+
+- `https://www.googleapis.com/auth/documents` — full read/write (Docs publisher does `documents.create` + `documents.batchUpdate`)
+
+**Drive:**
+
+- `https://www.googleapis.com/auth/drive.file` — per-file access for files the user explicitly authorizes through the Drive Picker UI (or that the app creates/shares)
+
+> **Consent-screen alignment.** Every scope above is declared on the production
+> OAuth consent screen. Requesting an undeclared scope causes Google to silently
+> substitute a different (declared) scope at consent time — re-introducing
+> issue #25. Broader Drive scopes (`drive.readonly`, `drive.metadata.readonly`)
+> require Google product review and a CASA attestation; that work is tracked
+> separately.
 
 > **Re-consent required after scope changes.** Existing refresh tokens do not
 > automatically gain newly added scopes — affected users must run the OAuth
@@ -163,7 +180,7 @@ seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
 
 ## Related
 
-- Seren Publishers: `gmail`, `google-calendar`
+- Seren Publishers: `gmail`, `google-calendar`, `google-contacts`, `google-sheets`, `google-docs`
 - Backend API: [https://docs.serendb.com](https://docs.serendb.com)
 
 ## License
