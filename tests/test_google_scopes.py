@@ -1,10 +1,19 @@
-# Critical regression test for serenorg/google-api-services#18.
+# Critical regression test for serenorg/google-api-services#25.
 #
-# The OAuth scope list minted by the auth service must include every scope
-# required by a deployed publisher in this repo. Drive/Docs publishers were
-# returning ACCESS_TOKEN_SCOPE_INSUFFICIENT on DriveFiles.List because the
-# auth service was minting Gmail/Calendar-only tokens. This test fails if a
-# future scope removal breaks Drive discovery, Drive export, or Docs reads.
+# The OAuth scope list minted by the auth service must only request scopes
+# that are DECLARED on the Google consent screen for the production OAuth
+# client. Requesting an undeclared scope causes Google to silently
+# substitute a different (declared) scope at consent time — masking the
+# fact that the user never granted what the code asked for.
+#
+# History:
+#   - Issue #18 added drive.readonly + drive.metadata.readonly + documents.readonly
+#     to fix ACCESS_TOKEN_SCOPE_INSUFFICIENT, but those scopes were never declared
+#     on the consent screen, so Google silently downgraded to drive.file + documents.
+#   - Issue #25 reconciles auth/config.py with the consent screen declaration.
+#
+# Future scope additions must EITHER be declared on the consent screen first
+# OR ship as a separate change paired with the GCP declaration.
 
 from __future__ import annotations
 
@@ -21,6 +30,8 @@ if str(AUTH_DIR) not in sys.path:
     sys.path.insert(0, str(AUTH_DIR))
 
 
+# Scopes that MUST be present — declared on the consent screen and used
+# by a deployed publisher in this repo.
 REQUIRED_SCOPES = {
     # Gmail publisher
     "https://www.googleapis.com/auth/gmail.readonly",
@@ -29,17 +40,31 @@ REQUIRED_SCOPES = {
     # Calendar publisher
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/calendar.events",
-    # Drive publisher — files.list discovery (issue #18)
-    "https://www.googleapis.com/auth/drive.metadata.readonly",
-    # Drive publisher — files.export content download (issue #18)
+    # Contacts publisher
+    "https://www.googleapis.com/auth/contacts.readonly",
+    # Sheets publisher (full — declared on consent screen)
+    "https://www.googleapis.com/auth/spreadsheets",
+    # Docs publisher (full — declared on consent screen; client.py does
+    # documents.create and documents.batchUpdate, so the readonly variant
+    # would be insufficient).
+    "https://www.googleapis.com/auth/documents",
+    # Drive publisher — per-file access via Drive Picker UI.
+    # drive.file requires no consent-screen declaration.
+    "https://www.googleapis.com/auth/drive.file",
+}
+
+# Scopes that MUST NOT be present — these were requested by a prior
+# revision but are not declared on the consent screen, so Google silently
+# substituted them. Re-introducing them re-introduces the bug.
+FORBIDDEN_SCOPES = {
     "https://www.googleapis.com/auth/drive.readonly",
-    # Docs publisher — documents.get by document ID (issue #18)
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
     "https://www.googleapis.com/auth/documents.readonly",
 }
 
 
-class GoogleScopesCoverageTests(unittest.TestCase):
-    def test_settings_google_scopes_covers_all_deployed_publishers(self):
+class GoogleScopesConsentScreenAlignmentTests(unittest.TestCase):
+    def setUp(self):
         # Provide the env vars Settings() requires so import succeeds.
         import os
 
@@ -50,13 +75,27 @@ class GoogleScopesCoverageTests(unittest.TestCase):
 
         from config import Settings  # type: ignore[import-not-found]
 
-        scopes = set(Settings().google_scopes.split())
-        missing = REQUIRED_SCOPES - scopes
+        self.scopes = set(Settings().google_scopes.split())
+
+    def test_required_scopes_present(self):
+        missing = REQUIRED_SCOPES - self.scopes
         self.assertEqual(
             missing,
             set(),
             "Settings.google_scopes is missing scopes required by deployed "
-            f"publishers (would re-introduce ACCESS_TOKEN_SCOPE_INSUFFICIENT): {sorted(missing)}",
+            f"publishers: {sorted(missing)}",
+        )
+
+    def test_undeclared_scopes_absent(self):
+        # Re-requesting any of these without a consent-screen declaration
+        # re-introduces issue #25 (silent scope downgrade).
+        present_forbidden = FORBIDDEN_SCOPES & self.scopes
+        self.assertEqual(
+            present_forbidden,
+            set(),
+            "Settings.google_scopes requests scopes not declared on the "
+            "Google consent screen — Google will silently downgrade these "
+            f"and the granted token will not match: {sorted(present_forbidden)}",
         )
 
 
