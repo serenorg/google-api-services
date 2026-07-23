@@ -282,6 +282,10 @@ class GmailClient:
 
     # Labels
 
+    async def get_profile(self, user_id: str = "me") -> Dict[str, Any]:
+        """Get the authenticated mailbox profile (emailAddress, totals, historyId)."""
+        return await self._request("GET", f"/users/{user_id}/profile")
+
     async def list_labels(self, user_id: str = "me") -> Dict[str, Any]:
         """List all labels."""
         return await self._request("GET", f"/users/{user_id}/labels")

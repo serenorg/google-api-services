@@ -129,6 +129,19 @@ async def health_check():
     return {"status": "healthy", "service": "gmail"}
 
 
+@app.get("/profile")
+async def get_profile(client: GmailClient = Depends(get_gmail_client)):
+    """Return the authenticated mailbox profile.
+
+    Agents operating under a user OAuth grant otherwise have no way to tell
+    which account they hold, which matters before acting as that person.
+    """
+    try:
+        return await client.get_profile()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
 # --- Messages ---
 
 @app.get("/messages")
