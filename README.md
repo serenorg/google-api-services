@@ -197,8 +197,7 @@ match. `tests/` checks that this list matches `auth/config.py`.
 > OAuth consent screen. Requesting an undeclared scope causes Google to silently
 > substitute a different (declared) scope at consent time — re-introducing
 > issue #25. Broader Drive scopes (`drive.readonly`, `drive.metadata.readonly`)
-> require Google product review and a CASA attestation; that work is tracked
-> separately.
+> require Google product review and a CASA attestation.
 
 > **Re-consent required after scope changes.** Existing refresh tokens do not
 > automatically gain newly added scopes — affected users must run the OAuth
@@ -208,16 +207,18 @@ match. `tests/` checks that this list matches `auth/config.py`.
 
 The Seren Gateway's Google OAuth provider record
 (`c95d05fb-3a93-4499-aa12-d108cde0424b`) also requests the scopes below, which
-`/auth/google` does not. They are not declared on the consent screen this
-service's flow relies on, so requesting them here would repeat issue #25. The
-Gateway keeps them because live consumers need them. They are listed in
-`GATEWAY_ONLY_SCOPES` in `auth/config.py`; a scope moves into
-`Settings.google_scopes` (and the list above) once the consent screen declares
-it.
+`/auth/google` does not. This difference is intended and permanent: the two
+sign-in paths are not expected to match. The Gateway keeps these scopes because
+live consumers need them. They are listed in `GATEWAY_ONLY_SCOPES` in
+`auth/config.py`.
+
+Any scope added to `Settings.google_scopes` must be declared on the consent
+screen first, because Google silently substitutes another scope for an
+undeclared one.
 
 | Scope | Why the Gateway needs it |
 |-------|--------------------------|
-| `https://www.googleapis.com/auth/drive.readonly` | seren-core Employee hires require it; restricted scope that needs Google review and a CASA attestation |
+| `https://www.googleapis.com/auth/drive.readonly` | seren-core Employee hires require it |
 | `https://www.googleapis.com/auth/contacts.other.readonly` | `google-contacts` `GET /otherContacts` |
 | `https://www.googleapis.com/auth/presentations` | `google-slides` publisher |
 
@@ -227,6 +228,10 @@ Check the live Gateway record against `auth/config.py` (exit code 0 in sync,
 ```bash
 SEREN_API_KEY=<key> python3 auth/scope_check.py
 ```
+
+Exit code 0 means the record holds exactly `Settings.google_scopes` plus
+`GATEWAY_ONLY_SCOPES`, and the output names the Gateway-only scopes. The check
+is run by hand.
 
 ## Related
 
