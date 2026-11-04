@@ -82,6 +82,26 @@ class CompareScopesTests(unittest.TestCase):
         self.assertEqual(drift.unexpected_in_gateway, set(GATEWAY_ONLY_SCOPES))
         self.assertIn("presentations", drift.report())
 
+    def test_in_sync_report_names_the_gateway_only_scopes(self):
+        # Before this, exit 0 printed only "match", as if the lists were equal.
+        drift = scope_check.compare_scopes(LIVE_GATEWAY_SCOPES_2026_11_04, *_configured())
+        self.assertEqual(drift.gateway_only, set(GATEWAY_ONLY_SCOPES))
+        report = drift.report()
+        self.assertIn("As intended", report)
+        for scope in GATEWAY_ONLY_SCOPES:
+            self.assertIn("Gateway only: " + scope, report)
+
+    def test_report_names_no_gateway_only_scopes_when_there_are_none(self):
+        drift = scope_check.compare_scopes(["openid", G + "calendar"], ["openid", G + "calendar"], [])
+        self.assertEqual(drift.gateway_only, set())
+        self.assertNotIn("Gateway only", drift.report())
+
+    def test_listed_scope_absent_from_the_record_is_not_reported_as_gateway_only(self):
+        record = [s for s in LIVE_GATEWAY_SCOPES_2026_11_04 if s != G + "presentations"]
+        drift = scope_check.compare_scopes(record, *_configured())
+        self.assertNotIn(G + "presentations", drift.gateway_only)
+        self.assertEqual(drift.missing_from_gateway, {G + "presentations"})
+
     def test_configured_scope_missing_from_gateway_is_drift(self):
         record = [s for s in LIVE_GATEWAY_SCOPES_2026_11_04 if s != G + "drive.file"]
         drift = scope_check.compare_scopes(record, *_configured())
@@ -147,6 +167,12 @@ class MainTests(unittest.TestCase):
         code, out = self._run({"providers": [{"id": PROVIDER_ID, "scopes": LIVE_GATEWAY_SCOPES_2026_11_04}]})
         self.assertEqual(code, 0, out)
         self.assertEqual(self.seen_url, scope_check.DEFAULT_SEREN_API_URL)
+
+    def test_in_sync_exit_0_names_the_gateway_only_scopes(self):
+        code, out = self._run({"providers": [{"id": PROVIDER_ID, "scopes": LIVE_GATEWAY_SCOPES_2026_11_04}]})
+        self.assertEqual(code, 0, out)
+        for scope in GATEWAY_ONLY_SCOPES:
+            self.assertIn("Gateway only: " + scope, out)
 
     def test_drift_exits_1(self):
         record = LIVE_GATEWAY_SCOPES_2026_11_04 + [G + "drive"]

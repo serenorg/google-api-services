@@ -7,6 +7,10 @@ The record must hold exactly ``Settings.google_scopes`` plus
 means Gateway sign-ins get less than ``/auth/google``; an unlisted extra
 scope means ``/auth/google`` sign-ins silently get less than the Gateway.
 
+The two sign-in paths are meant to differ: ``GATEWAY_ONLY_SCOPES`` lists what
+only the Gateway requests, and the report names those scopes when the check
+passes.
+
 Usage (from the repository root)::
 
     SEREN_API_KEY=... python3 auth/scope_check.py
@@ -49,6 +53,9 @@ class ScopeDrift:
 
     missing_from_gateway: set[str] = field(default_factory=set)
     unexpected_in_gateway: set[str] = field(default_factory=set)
+    # In the Gateway record and listed in GATEWAY_ONLY_SCOPES: not drift, but
+    # /auth/google does not request them.
+    gateway_only: set[str] = field(default_factory=set)
 
     @property
     def in_sync(self) -> bool:
@@ -56,7 +63,14 @@ class ScopeDrift:
 
     def report(self) -> str:
         if self.in_sync:
-            return "Gateway Google OAuth scopes match auth/config.py."
+            lines = ["Gateway Google OAuth scopes match auth/config.py."]
+            if self.gateway_only:
+                lines.append(
+                    f"As intended, /auth/google does not request these "
+                    f"{len(self.gateway_only)} scopes the Gateway requests:"
+                )
+                lines += [f"  Gateway only: {s}" for s in sorted(self.gateway_only)]
+            return "\n".join(lines)
         lines = ["Gateway Google OAuth scopes differ from auth/config.py:"]
         for scope in sorted(self.missing_from_gateway):
             lines.append(f"  missing from the Gateway record: {scope}")
@@ -74,10 +88,12 @@ def compare_scopes(
     gateway_only_scopes: Iterable[str],
 ) -> ScopeDrift:
     gateway = normalize_scopes(gateway_scopes)
-    expected = normalize_scopes(configured_scopes) | normalize_scopes(gateway_only_scopes)
+    configured = normalize_scopes(configured_scopes)
+    expected = configured | normalize_scopes(gateway_only_scopes)
     return ScopeDrift(
         missing_from_gateway=expected - gateway,
         unexpected_in_gateway=gateway - expected,
+        gateway_only=(gateway & expected) - configured,
     )
 
 
