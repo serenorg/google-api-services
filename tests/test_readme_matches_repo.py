@@ -82,6 +82,24 @@ class ReadmeMatchesRepoTests(unittest.TestCase):
             f"not in config: {sorted(readme_scopes - config_scopes)})",
         )
 
+    def test_readme_gateway_only_scopes_match_config(self):
+        os.environ.setdefault("GOOGLE_CLIENT_ID", "test-client")
+        os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-secret")
+        os.environ.setdefault("DATABASE_URL", "postgresql://test")
+        os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "x" * 44)
+        from config import GATEWAY_ONLY_SCOPES  # type: ignore[import-not-found]
+
+        section = _readme_section("Gateway-only Scopes")
+        readme_scopes = set(
+            re.findall(r"^\| `(https://www\.googleapis\.com/auth/[^`]+)` \|", section, re.M)
+        )
+        self.assertEqual(
+            readme_scopes,
+            set(GATEWAY_ONLY_SCOPES),
+            "README 'Gateway-only Scopes' must list exactly auth/config.py "
+            "GATEWAY_ONLY_SCOPES",
+        )
+
     def test_readme_services_table_lists_every_compose_service(self):
         services = {
             name: port
