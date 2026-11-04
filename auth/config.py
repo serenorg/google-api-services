@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # silently substitute a different (declared) scope at consent time
     # (issue #25). Drive access is per-file via the Drive Picker UI
     # (drive.file), which needs no consent-screen declaration.
+    # This string is the single source of truth for requested scopes: the
+    # Seren Gateway's Google OAuth provider record must match it, and the
+    # README "OAuth Scopes" section is checked against it (issue #14).
     google_scopes: str = (
         "openid email profile "
         "https://www.googleapis.com/auth/gmail.readonly "

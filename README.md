@@ -8,6 +8,14 @@ REST API wrappers for Google services, designed for Seren Publisher integration.
 |---------|------|------------|----------------|
 | **Gmail** | 8001 | `https://gmail.googleapis.com/gmail/v1` | `gmail` |
 | **Calendar** | 8002 | `https://www.googleapis.com/calendar/v3` | `google-calendar` |
+| **Auth** (OAuth + token exchange) | 8003 | `https://oauth2.googleapis.com` | — |
+| **Docs** | 8004 | `https://docs.googleapis.com/v1` | `google-docs` |
+| **Sheets** | 8005 | `https://sheets.googleapis.com/v4` | `google-sheets` |
+| **Contacts** | 8006 | `https://people.googleapis.com/v1` | `google-contacts` |
+
+Each service lives in the directory of the same name (`gmail/`, `calendar/`,
+`auth/`, `docs/`, `sheets/`, `contacts/`) and deploys through its
+`cloudbuild-<service>.yaml`.
 
 ## Architecture
 
@@ -72,24 +80,31 @@ User/Agent → Seren Gateway → Publisher → This Service → Google API
 ## Local Development
 
 ```bash
-# Install dependencies
-cd gmail && pip install -r requirements.txt
-cd calendar && pip install -r requirements.txt
+# Install dependencies and run one service (repeat per service)
+cd gmail && pip install -r requirements.txt && uvicorn main:app --port 8001 --reload
+cd calendar && pip install -r requirements.txt && uvicorn main:app --port 8002 --reload
+cd auth && pip install -r requirements.txt && uvicorn main:app --port 8003 --reload
+cd docs && pip install -r requirements.txt && uvicorn main:app --port 8004 --reload
+cd sheets && pip install -r requirements.txt && uvicorn main:app --port 8005 --reload
+cd contacts && pip install -r requirements.txt && uvicorn main:app --port 8006 --reload
 
-# Run services
-cd gmail && uvicorn main:app --port 8001 --reload
-cd calendar && uvicorn main:app --port 8002 --reload
+# Tests
+python -m pytest tests
 ```
 
 ## Docker
 
 ```bash
-# Build and run both services
+# Build and run every service (plus a local Postgres for auth)
 docker-compose up --build
 
-# Or individually
-docker build -t seren-gmail ./gmail
-docker build -t seren-calendar ./calendar
+# Or individually (build context is the repo root)
+docker build -t seren-gmail -f gmail/Dockerfile .
+docker build -t seren-calendar -f calendar/Dockerfile .
+docker build -t seren-google-auth -f auth/Dockerfile .
+docker build -t seren-docs -f docs/Dockerfile .
+docker build -t seren-sheets -f sheets/Dockerfile .
+docker build -t seren-contacts -f contacts/Dockerfile .
 ```
 
 ## Environment Variables
@@ -112,20 +127,22 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 
 ## Deployment
 
-Deploy to Google Cloud Run:
+Each service deploys to Google Cloud Run through Cloud Build, which builds
+the image, pushes it and deploys it:
+
+| Service | Cloud Build config | Cloud Run service |
+|---------|--------------------|-------------------|
+| Gmail | `cloudbuild-gmail.yaml` | `seren-gmail` |
+| Calendar | `cloudbuild-calendar.yaml` | `seren-calendar` |
+| Auth | `cloudbuild-auth.yaml` | `seren-google-auth` |
+| Docs | `cloudbuild-docs.yaml` | `seren-docs` |
+| Sheets | `cloudbuild-sheets.yaml` | `seren-sheets` |
+| Contacts | `cloudbuild-contacts.yaml` | `seren-contacts` |
 
 ```bash
-# Gmail service
-gcloud run deploy seren-gmail \
-  --source ./gmail \
-  --region us-central1 \
-  --allow-unauthenticated
-
-# Calendar service
-gcloud run deploy seren-calendar \
-  --source ./calendar \
-  --region us-central1 \
-  --allow-unauthenticated
+# Manual run; Cloud Build triggers set COMMIT_SHA themselves
+gcloud builds submit --config cloudbuild-gmail.yaml \
+  --substitutions=COMMIT_SHA=$(git rev-parse HEAD) .
 ```
 
 ## Testing with Seren MCP
@@ -139,6 +156,14 @@ seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
 ```
 
 ## OAuth Scopes
+
+`auth/config.py` (`Settings.google_scopes`) is the single source of truth for
+the scopes Seren requests from Google, alongside the identity scopes `openid`,
+`email` and `profile`. The `/auth/google` flow requests exactly that string and
+stores it with the user's token. The Seren Gateway's Google OAuth provider
+record must hold the same set: change scopes with a pull request against
+`auth/config.py`, then update the Gateway record to match. `tests/` checks that
+this list matches `auth/config.py`.
 
 **Gmail:**
 
