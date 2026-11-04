@@ -5,6 +5,31 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings
 
 
+# Scopes the Seren Gateway's Google OAuth provider record
+# (c95d05fb-3a93-4499-aa12-d108cde0424b) requests on top of
+# Settings.google_scopes. They are NOT declared on the production consent
+# screen this service's /auth/google flow relies on, so requesting them here
+# would repeat issue #25 (Google silently substitutes another scope). The
+# Gateway keeps them because live consumers need them. A scope moves from this
+# map into Settings.google_scopes once the consent screen declares it.
+# auth/scope_check.py fails when the live record differs from
+# Settings.google_scopes plus exactly these scopes.
+GATEWAY_ONLY_SCOPES: dict[str, str] = {
+    "https://www.googleapis.com/auth/drive.readonly": (
+        "seren-core Employee hires require it (scopes_sufficient in "
+        "managed_agent_hires.rs); restricted scope, needs Google review and "
+        "a CASA attestation before /auth/google can request it"
+    ),
+    "https://www.googleapis.com/auth/contacts.other.readonly": (
+        "google-contacts GET /otherContacts returns 403 without it "
+        "(seren-skills#1374)"
+    ),
+    "https://www.googleapis.com/auth/presentations": (
+        "google-slides publisher, which uses the same Gateway provider"
+    ),
+}
+
+
 class Settings(BaseSettings):
     """Auth service settings loaded from environment variables."""
 

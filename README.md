@@ -161,9 +161,10 @@ seren mcp call execute_paid_api --publisher gmail --method GET --path /messages
 the scopes Seren requests from Google, alongside the identity scopes `openid`,
 `email` and `profile`. The `/auth/google` flow requests exactly that string and
 stores it with the user's token. The Seren Gateway's Google OAuth provider
-record must hold the same set: change scopes with a pull request against
-`auth/config.py`, then update the Gateway record to match. `tests/` checks that
-this list matches `auth/config.py`.
+record must hold the same set plus the scopes listed under
+[Gateway-only Scopes](#gateway-only-scopes), and nothing else: change scopes
+with a pull request against `auth/config.py`, then update the Gateway record to
+match. `tests/` checks that this list matches `auth/config.py`.
 
 **Gmail:**
 
@@ -202,6 +203,30 @@ this list matches `auth/config.py`.
 > **Re-consent required after scope changes.** Existing refresh tokens do not
 > automatically gain newly added scopes — affected users must run the OAuth
 > flow again so a refresh token with the expanded scope set is stored.
+
+## Gateway-only Scopes
+
+The Seren Gateway's Google OAuth provider record
+(`c95d05fb-3a93-4499-aa12-d108cde0424b`) also requests the scopes below, which
+`/auth/google` does not. They are not declared on the consent screen this
+service's flow relies on, so requesting them here would repeat issue #25. The
+Gateway keeps them because live consumers need them. They are listed in
+`GATEWAY_ONLY_SCOPES` in `auth/config.py`; a scope moves into
+`Settings.google_scopes` (and the list above) once the consent screen declares
+it.
+
+| Scope | Why the Gateway needs it |
+|-------|--------------------------|
+| `https://www.googleapis.com/auth/drive.readonly` | seren-core Employee hires require it; restricted scope that needs Google review and a CASA attestation |
+| `https://www.googleapis.com/auth/contacts.other.readonly` | `google-contacts` `GET /otherContacts` |
+| `https://www.googleapis.com/auth/presentations` | `google-slides` publisher |
+
+Check the live Gateway record against `auth/config.py` (exit code 0 in sync,
+1 drift, 2 the record could not be read; needs `pydantic-settings`):
+
+```bash
+SEREN_API_KEY=<key> python3 auth/scope_check.py
+```
 
 ## Related
 
