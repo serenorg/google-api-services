@@ -181,7 +181,7 @@ async def list_messages(
 @app.get("/messages/{message_id}")
 async def get_message(
     message_id: str,
-    format: str = Query("full", alias="format", enum=["minimal", "full", "raw", "metadata"], description="Response format"),
+    format: str = Query("full", alias="format", json_schema_extra={"enum": ["minimal", "full", "raw", "metadata"]}, description="Response format"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """Get a specific message by ID."""
@@ -488,7 +488,7 @@ async def list_threads(
 @app.get("/threads/{thread_id}")
 async def get_thread(
     thread_id: str,
-    format: str = Query("full", alias="format", enum=["minimal", "full", "metadata"], description="Response format"),
+    format: str = Query("full", alias="format", json_schema_extra={"enum": ["minimal", "full", "metadata"]}, description="Response format"),
     client: GmailClient = Depends(get_gmail_client),
 ):
     """Get a specific thread."""

@@ -138,7 +138,7 @@ async def list_events(
     time_max: Optional[str] = Query(None, alias="timeMax", description="Upper bound (RFC3339)"),
     q: Optional[str] = Query(None, description="Search query"),
     single_events: bool = Query(True, alias="singleEvents", description="Expand recurring events"),
-    order_by: str = Query("startTime", alias="orderBy", enum=["startTime", "updated"]),
+    order_by: str = Query("startTime", alias="orderBy", json_schema_extra={"enum": ["startTime", "updated"]}),
     show_deleted: bool = Query(False, alias="showDeleted"),
     client: CalendarClient = Depends(get_calendar_client),
 ):
@@ -186,7 +186,7 @@ async def get_event(
 async def create_event(
     request: CreateEventRequest,
     calendar_id: str = Query("primary", alias="calendarId"),
-    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", json_schema_extra={"enum": ["all", "externalOnly", "none"]}),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Create a new event."""
@@ -206,7 +206,7 @@ async def update_event(
     event_id: str,
     request: UpdateEventRequest,
     calendar_id: str = Query("primary", alias="calendarId"),
-    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", json_schema_extra={"enum": ["all", "externalOnly", "none"]}),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Update an existing event (full update)."""
@@ -227,7 +227,7 @@ async def patch_event(
     event_id: str,
     request: UpdateEventRequest,
     calendar_id: str = Query("primary", alias="calendarId"),
-    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", json_schema_extra={"enum": ["all", "externalOnly", "none"]}),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Patch an existing event (partial update)."""
@@ -247,7 +247,7 @@ async def patch_event(
 async def delete_event(
     event_id: str,
     calendar_id: str = Query("primary", alias="calendarId"),
-    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", json_schema_extra={"enum": ["all", "externalOnly", "none"]}),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Delete an event."""
@@ -267,7 +267,7 @@ async def move_event(
     event_id: str,
     destination: str = Query(..., description="Destination calendar ID"),
     source_calendar_id: str = Query("primary", alias="source"),
-    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", json_schema_extra={"enum": ["all", "externalOnly", "none"]}),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Move an event to another calendar."""
@@ -288,7 +288,7 @@ async def move_event(
 async def quick_add_event(
     text: str = Query(..., description="Natural language event description"),
     calendar_id: str = Query("primary", alias="calendarId"),
-    send_updates: str = Query("none", alias="sendUpdates", enum=["all", "externalOnly", "none"]),
+    send_updates: str = Query("none", alias="sendUpdates", json_schema_extra={"enum": ["all", "externalOnly", "none"]}),
     client: CalendarClient = Depends(get_calendar_client),
 ):
     """Create event from natural language text."""
