@@ -96,8 +96,8 @@ services:
     build:
       context: .
       dockerfile: nano-banana/Dockerfile
-    expose:
-      - "8003"
+    ports:
+      - "8012:8003"
     environment:
       - LOG_LEVEL=INFO
       - GATEWAY_SECRET=${GATEWAY_SECRET:-}

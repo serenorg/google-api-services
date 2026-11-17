@@ -13,6 +13,7 @@
 | **Docs** | 8004 | `https://docs.googleapis.com/v1` |
 | **Sheets** | 8005 | `https://sheets.googleapis.com/v4` |
 | **Contacts** | 8006 | `https://people.googleapis.com/v1` |
+| **nano-banana** | 8012 | `https://generativelanguage.googleapis.com/v1beta` |
 
 ## Architecture
 
@@ -22,7 +23,7 @@ Agent → Seren Gateway → Publisher → This Service → Google API
                   Token Exchange (OAuth tokens from SerenDB)
 ```
 
-Each service receives user's Google OAuth access token via `Authorization: Bearer` header and proxies requests to Google's REST API.
+Workspace services receive the user's Google OAuth access token via `Authorization: Bearer`. Nano-banana uses Seren's Gemini key and requires `X-Seren-Gateway-Secret` on its four paid POST routes. Its health check is public. Compose maps host 8012 to container 8003.
 
 ## Development Commands
 
