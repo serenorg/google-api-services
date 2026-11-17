@@ -6,12 +6,13 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 import httpx
 
 sys.path.insert(0, "..")
 from shared.config import get_settings
+from shared.gateway_auth import require_gateway_secret
 
 from client import GeminiImageClient
 from models import (
@@ -70,7 +71,7 @@ async def health_check():
     }
 
 
-@app.post("/generate", response_model=GenerateResponse)
+@app.post("/generate", response_model=GenerateResponse, dependencies=[Depends(require_gateway_secret)])
 async def generate_image(request: GenerateRequest):
     """
     Generate an image from a text prompt.
@@ -95,7 +96,7 @@ async def generate_image(request: GenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/generate/4k", response_model=GenerateResponse)
+@app.post("/generate/4k", response_model=GenerateResponse, dependencies=[Depends(require_gateway_secret)])
 async def generate_4k_image(request: GenerateRequest):
     """
     Generate a 4K resolution image from a text prompt.
@@ -118,7 +119,7 @@ async def generate_4k_image(request: GenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/edit", response_model=GenerateResponse)
+@app.post("/edit", response_model=GenerateResponse, dependencies=[Depends(require_gateway_secret)])
 async def edit_image(request: EditRequest):
     """
     Edit an existing image with a text prompt.
@@ -143,7 +144,7 @@ async def edit_image(request: EditRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/blend", response_model=GenerateResponse)
+@app.post("/blend", response_model=GenerateResponse, dependencies=[Depends(require_gateway_secret)])
 async def blend_images(request: BlendRequest):
     """
     Blend multiple images into a cohesive composition.

@@ -7,6 +7,8 @@ import re
 from typing import Optional, List
 from urllib.parse import urlparse
 
+from shared.fetch import fetch
+
 
 class GeminiImageClient:
     """Client for Google Gemini Image API."""
@@ -75,15 +77,12 @@ class GeminiImageClient:
         Returns:
             Tuple of (base64_data, mime_type)
         """
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=30)
-            response.raise_for_status()
+        response = await fetch(url, timeout=30)
+        content_type = response.headers.get("content-type", "image/png")
+        mime_type = content_type.split(";")[0].strip()
 
-            content_type = response.headers.get("content-type", "image/png")
-            mime_type = content_type.split(";")[0].strip()
-
-            base64_data = base64.b64encode(response.content).decode("utf-8")
-            return base64_data, mime_type
+        base64_data = base64.b64encode(response.content).decode("utf-8")
+        return base64_data, mime_type
 
     def _detect_mime_type(self, base64_data: str) -> str:
         """Detect MIME type from base64 image data."""
