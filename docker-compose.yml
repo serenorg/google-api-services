@@ -92,6 +92,17 @@ services:
     depends_on:
       - postgres
 
+  nano-banana:
+    build:
+      context: .
+      dockerfile: nano-banana/Dockerfile
+    expose:
+      - "8003"
+    environment:
+      - LOG_LEVEL=INFO
+      - GATEWAY_SECRET=${GATEWAY_SECRET:-}
+      - GOOGLE_AI_STUDIO_API_KEY=${GOOGLE_AI_STUDIO_API_KEY:-}
+
   postgres:
     image: postgres:15-alpine
     environment:

@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Seren-funded services fail closed without a gateway credential.
+    gateway_secret: str = ""
+    google_ai_studio_api_key: str = ""
+    gemini_image_model: str = "gemini-3-pro-image-preview"
+
     # Google API base URLs
     gmail_api_base: str = "https://gmail.googleapis.com/gmail/v1"
     calendar_api_base: str = "https://www.googleapis.com/calendar/v3"
