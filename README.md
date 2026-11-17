@@ -12,10 +12,17 @@ REST API wrappers for Google services, designed for Seren Publisher integration.
 | **Docs** | 8004 | `https://docs.googleapis.com/v1` | `google-docs` |
 | **Sheets** | 8005 | `https://sheets.googleapis.com/v4` | `google-sheets` |
 | **Contacts** | 8006 | `https://people.googleapis.com/v1` | `google-contacts` |
+| **nano-banana** | 8012 | `https://generativelanguage.googleapis.com/v1beta` | `nano-banana` |
 
 Each service lives in the directory of the same name (`gmail/`, `calendar/`,
-`auth/`, `docs/`, `sheets/`, `contacts/`) and deploys through its
+`auth/`, `docs/`, `sheets/`, `contacts/`, `nano-banana/`) and deploys through its
 `cloudbuild-<service>.yaml`.
+
+Nano-banana uses Seren's Gemini key and requires `X-Seren-Gateway-Secret` on
+`/generate`, `/generate/4k`, `/edit` and `/blend`; `/health` remains public.
+Set `GATEWAY_SECRET` and `GOOGLE_AI_STUDIO_API_KEY` for local use. Its Compose
+host port is 8012 and container port is 8003. Deployment reuses the existing
+Gemini Secret Manager reference and binds `nano-banana-gateway-secret`.
 
 ## Architecture
 

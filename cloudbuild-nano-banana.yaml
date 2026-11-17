@@ -19,16 +19,31 @@ steps:
 
   # Roll out the exact digest that was just built.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - 'deploy'
-      - 'seren-nano-banana'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-nano-banana:$COMMIT_SHA'
-      - '--region=us-central1'
-      - '--allow-unauthenticated'
-      - '--set-secrets=GATEWAY_SECRET=nano-banana-gateway-secret:latest,GOOGLE_AI_STUDIO_API_KEY=${_GOOGLE_AI_STUDIO_SECRET}:latest'
-      - '--quiet'
+      - '-ceu'
+      - |
+        # Read only the existing key's Secret Manager reference, never its value.
+        gemini_secret="$$(gcloud 'run' services describe seren-nano-banana --region=us-central1 --project=$PROJECT_ID --format=json | python3 -c '
+        import json, sys
+        template = json.load(sys.stdin)["spec"]["template"]
+        env = template["spec"]["containers"][0].get("env", [])
+        ref = next((e.get("valueFrom", {}).get("secretKeyRef", {}).get("name") for e in env if e["name"] == "GOOGLE_AI_STUDIO_API_KEY"), None)
+        if not ref:
+            sys.exit("Existing GOOGLE_AI_STUDIO_API_KEY must be bound to Secret Manager before deployment")
+        aliases = template.get("metadata", {}).get("annotations", {}).get("run.googleapis.com/secrets", "")
+        for alias in aliases.split(","):
+            name, separator, resource = alias.partition(":")
+            if separator and name == ref:
+                ref = resource
+                break
+        print(ref)
+        ')"
+        gcloud 'run' 'deploy' seren-nano-banana \
+          '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-nano-banana:$COMMIT_SHA' \
+          --project=$PROJECT_ID --region=us-central1 --port=8003 \
+          --allow-unauthenticated --quiet \
+          "--set-secrets=GATEWAY_SECRET=nano-banana-gateway-secret:latest,GOOGLE_AI_STUDIO_API_KEY=$${gemini_secret}:latest"
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-nano-banana:$COMMIT_SHA'
