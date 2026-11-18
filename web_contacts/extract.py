@@ -44,7 +44,10 @@ def empty_contacts() -> dict:
 def _phone(phone: str, *, explicit=False, prefix="") -> bool:
     """Require telephone evidence rather than charging for arbitrary page numbers."""
     digits = re.sub(r"\D", "", phone)
-    if not 7 <= len(digits) <= 15 or _NON_PHONE.fullmatch(phone) or _IDENTIFIER_LABEL.search(prefix):
+    # Typography around date separators does not turn a date into a phone.
+    compact = re.sub(r"\s+", "", phone).replace("–", "-").replace("—", "-")
+    spaced_date = re.fullmatch(r"(?:\d{1,2}\s+\d{1,2}\s+\d{4}|\d{4}\s+\d{1,2}\s+\d{1,2})", phone)
+    if not 7 <= len(digits) <= 15 or _NON_PHONE.fullmatch(compact) or spaced_date or _IDENTIFIER_LABEL.search(prefix):
         return False
     groups = [len(part) for part in re.findall(r"\d+", phone)]
     formatted = groups == [3, 4] or (
@@ -100,11 +103,17 @@ def extract_contacts(html: str, url: str) -> dict:
             phone = unquote(href[4:]).split(";", 1)[0].split("?", 1)[0].strip()
             if _phone(phone, explicit=True):
                 phones.append(phone)
+    offset = 0
     for part in text_parts:
         for match in _PHONE.finditer(part):
             phone = match.group().strip()
-            if _phone(phone, prefix=part[max(0, match.start() - 40):match.start()]):
+            # The label can be in a sibling inline element (Order number:
+            # <strong>123-456-7890</strong>), while number matching stays local
+            # to each text node so unrelated numbers cannot join together.
+            start = offset + match.start()
+            if _phone(phone, prefix=text[max(0, start - 40):start]):
                 phones.append(phone)
+        offset += len(part) + 1
     seen_digits = set()
     for phone in phones:
         digits = re.sub(r"\D", "", phone)

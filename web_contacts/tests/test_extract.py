@@ -54,8 +54,22 @@ def test_extract_real_business_pages():
         "Account 1234567", "IP: 123.123.123.123",
     ):
         assert extract_contacts("<p>" + text + "</p>", root) == empty_contacts()
+    for html in (
+        "<time>Updated 18 - 11 - 2026</time>",
+        "<time>Updated 2026 - 11 - 18</time>",
+        "<time>Updated 18 . 11 . 2026</time>",
+        "<time>Updated 18 – 11 – 2026</time>",
+        "<time>Updated 18 11 2026</time>",
+        "<p>Order number: <strong>123-456-7890</strong></p>",
+        "<p><span>Order</span> <em>number:</em> <strong>123-456-7890</strong></p>",
+        "<p>License: <span><strong>123-456-7890</strong></span></p>",
+        "<p><span>Account number:</span> <strong>1234567890</strong></p>",
+    ):
+        assert extract_contacts(html, root) == empty_contacts()
     assert extract_contacts("<p>Call: 555-0123</p>", root)["phones"] == ["555-0123"]
     assert extract_contacts("<p>Phone: 8509077500</p>", root)["phones"] == ["8509077500"]
+    assert extract_contacts("<p>Phone: <strong>8509077500</strong></p>", root)["phones"] == ["8509077500"]
+    assert extract_contacts("<p>Call: <strong>555-0123</strong></p>", root)["phones"] == ["555-0123"]
 
     previous = os.environ.get("GATEWAY_SECRET")
     os.environ["GATEWAY_SECRET"] = "test-only-web-contacts-secret"
