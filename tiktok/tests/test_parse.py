@@ -19,9 +19,9 @@ def test_saved_profile_and_video_pages(monkeypatch):
     profile_page = (FIXTURES / "profile.html").read_text()
     video_page = (FIXTURES / "video.html").read_text()
     assert parse.profile(profile_page) == {
-        "id": "107955", "username": "tiktok", "followers": 96900000,
-        "likes": 469000000, "video_count": 1519,
-        "bio": "Your next discovery is waiting on TikTok.", "bio_link": None,
+        "id": "7664638705177150477", "username": "nasa", "followers": 2200000,
+        "likes": 11800000, "video_count": 67,
+        "bio": "Making the seemingly impossible, possible.✨", "bio_link": "go.nasa.gov/3WyvlQi",
     }
     item = parse.video(video_page)
     assert item == {
@@ -44,7 +44,7 @@ def test_saved_profile_and_video_pages(monkeypatch):
     try:
         with TestClient(app) as client:
             assert client.get("/health").status_code == 200
-            for route, link in (("profiles", "https://www.tiktok.com/@tiktok"), ("videos", "https://www.tiktok.com/@scout2015/video/6718335390845095173")):
+            for route, link in (("profiles", "https://www.tiktok.com/@nasa"), ("videos", "https://www.tiktok.com/@scout2015/video/6718335390845095173")):
                 payload = {"links": [link]}
                 assert client.post(f"/{route}", json=payload).status_code == 401
                 assert client.post(f"/{route}", json=payload, headers={"X-Seren-Gateway-Secret": "wrong"}).status_code == 401
@@ -57,12 +57,12 @@ def test_saved_profile_and_video_pages(monkeypatch):
                 assert body["data"]["proxy_bytes"] > 0
             assert len(calls) == 2
             header = {"X-Seren-Gateway-Secret": "capture-gateway"}
-            for payload in ({"links": []}, {"links": ["https://www.tiktok.com/@tiktok"] * 51}, {"links": ["http://169.254.169.254/"]}, {"links": ["https://www.tiktok.com.evil.test/@tiktok"]}):
+            for payload in ({"links": []}, {"links": ["https://www.tiktok.com/@nasa"] * 51}, {"links": ["http://169.254.169.254/"]}, {"links": ["https://www.tiktok.com.evil.test/@tiktok"]}):
                 assert client.post("/profiles", json=payload, headers=header).status_code == 422
             monkeypatch.delenv("PROXY_PASSWORD")
-            assert client.post("/profiles", json={"links": ["https://www.tiktok.com/@tiktok"]}, headers=header).status_code == 503
+            assert client.post("/profiles", json={"links": ["https://www.tiktok.com/@nasa"]}, headers=header).status_code == 503
             monkeypatch.delenv("GATEWAY_SECRET")
             get_settings.cache_clear()
-            assert client.post("/profiles", json={"links": ["https://www.tiktok.com/@tiktok"]}).status_code == 503
+            assert client.post("/profiles", json={"links": ["https://www.tiktok.com/@nasa"]}).status_code == 503
     finally:
         get_settings.cache_clear()
