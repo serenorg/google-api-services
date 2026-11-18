@@ -15,6 +15,7 @@ REST API wrappers for Google services, designed for Seren Publisher integration.
 | **web-contacts** | 8008 | Public business websites | `web-contacts` |
 | **tech-stack** | 8009 | Public website technologies | `tech-stack` |
 | **tiktok** | 8010 | Public TikTok profiles and videos | `tiktok` |
+| **instagram** | 8011 | Public Instagram profiles, posts and reels | `instagram` |
 | **nano-banana** | 8012 | `https://generativelanguage.googleapis.com/v1beta` | `nano-banana` |
 
 Each service lives in the directory of the same name (`gmail/`, `calendar/`,
