@@ -46,7 +46,7 @@ def test_saved_profile_and_reel_pages(monkeypatch):
     def respond(request):
         calls.append(request)
         if request.url.path in blocked_links:
-            return httpx.Response(302, headers={"Location": "/accounts/login/"})
+            return httpx.Response(302, headers={"Location": "/accounts/login/"}, stream=httpx.ByteStream(b""))
         if request.url.path == "/accounts/login/":
             page = login_page
         elif request.url.path.startswith("/reel/"):
