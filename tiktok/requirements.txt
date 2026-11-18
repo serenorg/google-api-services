@@ -1,0 +1,7 @@
+# ABOUTME: Installs the dependencies for the public TikTok service.
+# ABOUTME: Uses the same HTTP and gateway configuration stack as sibling services.
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+httpx>=0.26.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0

@@ -99,12 +99,13 @@ class _PinnedTransport(httpx.AsyncHTTPTransport):
         self._pool = httpcore.AsyncConnectionPool(network_backend=_PinnedBackend(address, proxy))
 
 
-async def fetch(url, *, proxy=None, max_bytes=5_000_000, timeout=20) -> httpx.Response:
+async def fetch(url, *, proxy=None, max_bytes=5_000_000, timeout=20, on_bytes=None) -> httpx.Response:
     """Fetch one public page, following at most five checked redirects.
 
     Returns a buffered httpx.Response, retaining the final URL, headers and cookies.
     Unsafe destinations and oversized bodies raise ValueError; HTTP errors retain
     httpx's HTTPStatusError. The timeout bounds the whole fetch, including DNS.
+    on_bytes receives each downloaded body chunk size, including redirects and errors.
     Explicit HTTP(S) proxies use CONNECT to the validated IP for both URL schemes.
     """
     if max_bytes < 0 or timeout <= 0:
@@ -119,21 +120,24 @@ async def fetch(url, *, proxy=None, max_bytes=5_000_000, timeout=20) -> httpx.Re
                 headers={"Accept-Encoding": "identity"},
             ) as client:
                 async with client.stream("GET", current) as response:
+                    content = bytearray()
+                    async for chunk in response.aiter_raw():
+                        if on_bytes is not None:
+                            on_bytes(len(chunk))
+                        if len(content) + len(chunk) > max_bytes:
+                            raise ValueError("Response exceeds max_bytes")
+                        content.extend(chunk)
+                    buffered = httpx.Response(
+                        response.status_code, headers=response.headers, content=bytes(content),
+                        request=response.request,
+                    )
                     if response.is_redirect:
                         if redirects == 5:
                             raise httpx.TooManyRedirects("More than five redirects", request=response.request)
                         current = current.join(response.headers["location"])
                         continue
-                    response.raise_for_status()
+                    buffered.raise_for_status()
                     if response.headers.get("content-encoding", "identity").lower() != "identity":
                         raise ValueError("Compressed responses are refused to enforce the byte limit")
-                    content = bytearray()
-                    async for chunk in response.aiter_raw():
-                        if len(content) + len(chunk) > max_bytes:
-                            raise ValueError("Response exceeds max_bytes")
-                        content.extend(chunk)
-                    return httpx.Response(
-                        response.status_code, headers=response.headers, content=bytes(content),
-                        request=response.request,
-                    )
+                    return buffered
     raise AssertionError("Unreachable redirect state")

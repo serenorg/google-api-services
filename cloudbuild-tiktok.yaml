@@ -1,0 +1,32 @@
+# ABOUTME: Builds and deploys the TikTok service at the exact commit.
+# ABOUTME: Binds gateway access and four residential proxy settings from Secret Manager.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-tiktok:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-tiktok:latest'
+      - '-f'
+      - 'tiktok/Dockerfile'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-tiktok:$COMMIT_SHA'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'seren-tiktok'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-tiktok:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--port=8010'
+      - '--allow-unauthenticated'
+      - '--set-secrets=GATEWAY_SECRET=tiktok-gateway-secret:latest,PROXY_USERNAME=proxy-username:latest,PROXY_PASSWORD=proxy-password:latest,PROXY_HOST=proxy-host:latest,PROXY_PORT=proxy-port:latest'
+      - '--quiet'
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-tiktok:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-tiktok:latest'
