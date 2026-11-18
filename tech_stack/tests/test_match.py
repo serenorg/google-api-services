@@ -17,7 +17,7 @@ def test_saved_shopify_store(tmp_path):
             "cats": [6], "website": "https://shopify.com",
             "meta": {"shopify-digital-wallet": r".*\;confidence:50"},
             "scriptSrc": r"cdn\.shopify\.com/\;confidence:50",
-            "implies": r"Cart Functionality\;confidence:75", "excludes": "Legacy Cart",
+            "implies": r"Cart Functionality\;confidence:75\;version:1", "excludes": "Legacy Cart",
         },
         "Cart Functionality": {"cats": [6]},
         "Shopify Checkout": {
@@ -53,6 +53,7 @@ def test_saved_shopify_store(tmp_path):
     }
     assert matches["Shopify"]["confidence"] == 100
     assert matches["Cart Functionality"]["confidence"] == 75
+    assert matches["Cart Functionality"]["version"] == "1"
     assert matches["Shopify Script Loader"]["version"] == "2"
     assert matches["Shopify Script Loader"]["confidence"] == 35
     assert matches["Shopify"]["categories"] == [
