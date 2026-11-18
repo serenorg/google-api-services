@@ -1,0 +1,7 @@
+# ABOUTME: Runtime dependencies for the YouTube publisher service.
+# ABOUTME: Uses FastAPI query models and the repository's shared configuration helpers.
+fastapi>=0.115.0
+uvicorn[standard]>=0.27.0
+httpx>=0.26.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
