@@ -98,7 +98,7 @@ class ProxyPool:
         self._port = int(port)
 
     def session_url(self):
-        session = uuid4().hex
+        session = uuid4().hex[:8]
         username, password = self._username, self._password
         if self._host.endswith(".superproxy.io"):
             username += f"-session-{session}"
