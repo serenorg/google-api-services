@@ -34,7 +34,7 @@ def test_saved_profile_and_video_pages(monkeypatch):
 
     def respond(request):
         calls.append(request)
-        return httpx.Response(200, text=video_page if "/video/" in request.url.path else profile_page)
+        return httpx.Response(200, stream=httpx.ByteStream((video_page if "/video/" in request.url.path else profile_page).encode()))
 
     monkeypatch.setattr(importlib.import_module("shared.fetch"), "_PinnedTransport", lambda address, proxy: httpx.MockTransport(respond))
     monkeypatch.setenv("GATEWAY_SECRET", "capture-gateway")
