@@ -106,14 +106,19 @@ class RuleSet:
                     for raw in as_list(self.technologies[source].get("implies", [])):
                         name, tags = tagged(raw)
                         confidence = min(source_confidence, int(tags.get("confidence", "100")))
-                        if confidence > candidates.get(name, (0, ""))[0]:
-                            candidates[name] = (confidence, "")
+                        previous = candidates.get(name, (0, ""))
+                        candidates[name] = (
+                            max(confidence, previous[0]),
+                            previous[1] or tags.get("version", ""),
+                        )
                 for name, result in candidates.items():
                     if (name in forbidden or name not in self.technologies
                             or not self._requirements_met(name, detected)):
                         continue
-                    if result[0] > detected.get(name, (0, ""))[0]:
-                        detected[name] = result
+                    previous = detected.get(name, (0, ""))
+                    merged = (max(previous[0], result[0]), previous[1] or result[1])
+                    if merged != previous:
+                        detected[name] = merged
                         changed = True
             return detected
 
