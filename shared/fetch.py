@@ -127,6 +127,12 @@ async def fetch(url, *, proxy=None, max_bytes=5_000_000, timeout=20, on_bytes=No
                         if len(content) + len(chunk) > max_bytes:
                             raise ValueError("Response exceeds max_bytes")
                         content.extend(chunk)
+                    # Constructing a Response with content decodes it immediately.
+                    # Refuse encodings first, including on redirects and errors.
+                    if response.headers.get("content-encoding", "identity").lower() != "identity":
+                        if response.status_code in (403, 429):
+                            response.raise_for_status()
+                        raise ValueError("Compressed responses are refused to enforce the byte limit")
                     buffered = httpx.Response(
                         response.status_code, headers=response.headers, content=bytes(content),
                         request=response.request,
@@ -137,7 +143,5 @@ async def fetch(url, *, proxy=None, max_bytes=5_000_000, timeout=20, on_bytes=No
                         current = current.join(response.headers["location"])
                         continue
                     buffered.raise_for_status()
-                    if response.headers.get("content-encoding", "identity").lower() != "identity":
-                        raise ValueError("Compressed responses are refused to enforce the byte limit")
                     return buffered
     raise AssertionError("Unreachable redirect state")
