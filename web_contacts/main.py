@@ -2,7 +2,7 @@
 # ABOUTME: Bills only sites with contacts at two tenths of one cent each.
 
 from decimal import Decimal
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import Depends, FastAPI
 from pydantic import BaseModel, Field, field_validator
@@ -11,7 +11,7 @@ from shared.billing import billed
 from shared.gateway_auth import require_gateway_secret
 
 from .extract import empty_contacts, extract_contacts
-from .pages import Batch, read_pages
+from .pages import Batch, domain, read_pages
 
 
 app = FastAPI(title="Website Contacts Service", version="1.0.0")
@@ -23,11 +23,17 @@ class ContactsRequest(BaseModel):
     @field_validator("urls")
     @classmethod
     def public_web_urls(cls, urls):
+        sites = {}
         for url in urls:
             parsed = urlsplit(url)
             if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
                 raise ValueError("Use HTTP(S) website addresses without credentials")
-        return list(dict.fromkeys(urls))
+            # Paths, queries and fragments identify pages, not additional sites.
+            # Treat www and the default HTTP(S) ports as equivalent too.
+            port = parsed.port
+            key = (domain(url), None if port in (None, 80 if parsed.scheme == "http" else 443) else port)
+            sites.setdefault(key, urlunsplit((parsed.scheme, parsed.netloc.lower(), "/", "", "")))
+        return list(sites.values())
 
 
 @app.get("/health")
