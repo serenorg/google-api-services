@@ -4,6 +4,7 @@
 import asyncio
 import importlib
 from pathlib import Path
+import re
 
 import httpx
 from fastapi.testclient import TestClient
@@ -51,7 +52,7 @@ def test_twenty_link_batch_pauses_after_four_blocked_links(monkeypatch):
     assert len(requests) == 17
     assert result["proxy_bytes"] == 7 * len(good) + 10 * len(login)
     assert len(set(sessions)) == len(sessions)
-    assert all(httpx.Proxy(url).raw_auth[1].startswith(b"p@ss:word_session-") for url in sessions)
+    assert all(re.fullmatch(rb"p@ss:word_session-[0-9a-f]{8}", httpx.Proxy(url).raw_auth[1]) for url in sessions)
 
     # The paid route must preserve partial results as HTTP 200 and charge only reads.
     monkeypatch.setenv("GATEWAY_SECRET", "capture-batch-gateway")
