@@ -23,8 +23,13 @@ def site_links(links: list[str], home: str) -> list[str]:
     """Sheila's same-site selection, extended to the contact service's keywords."""
     found = []
     for link in links:
-        link = urldefrag(urljoin(home, link))[0]
-        parsed = urlsplit(link)
+        try:
+            link = urldefrag(urljoin(home, link))[0]
+            parsed = urlsplit(link)
+            # Validate ports as well as hosts before accepting one link.
+            parsed.port
+        except ValueError:
+            continue
         if (
             parsed.scheme in ("http", "https")
             and not parsed.username and not parsed.password

@@ -11,7 +11,17 @@ from .pages import domain
 
 
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
-_PHONE = re.compile(r"(?<![\w\d])\+?\d[\d ()\u00a0.\-]{5,}\d(?![\w\d])")
+_PHONE = re.compile(r"(?<![\w\d])\+?\(?\d[\d ()\u00a0.\-–—]{5,}\d(?![\w\d])")
+_NON_PHONE = re.compile(
+    r"(?:(?:18|19|20)\d{2}\s*[-–—]\s*(?:(?:18|19|20)\d{2}|\d{2})"
+    r"|\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}"
+    r"|\d{5}-\d{4}|(?:\d{1,3}\.){3}\d{1,3}|\d+[.,]\d{1,2})"
+)
+_PHONE_LABEL = re.compile(r"\b(?:phone|telephone|tel|call|fax|mobile|whatsapp)\b", re.I)
+_IDENTIFIER_LABEL = re.compile(
+    r"\b(?:copyright|license|licence|lic|order|invoice|sku|product|registration|account|tracking|tax|ein|vat|zip|postal)"
+    r"(?:\s+(?:id|no\.?|number|code))?[\s:#.\-]*$", re.I,
+)
 _NAME = r"[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:['’\-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]+)*\s+[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:['’\-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]+)*"
 _ROLE = r"(?i:Owner|Founder|CEO|President)"
 _GAP = r"\s*(?:[,|:/–—\-]\s*)?"
@@ -29,6 +39,18 @@ _SOCIAL_HOSTS = {
 
 def empty_contacts() -> dict:
     return {"emails": [], "phones": [], "social_links": {}, "owners": []}
+
+
+def _phone(phone: str, *, explicit=False, prefix="") -> bool:
+    """Require telephone evidence rather than charging for arbitrary page numbers."""
+    digits = re.sub(r"\D", "", phone)
+    if not 7 <= len(digits) <= 15 or _NON_PHONE.fullmatch(phone) or _IDENTIFIER_LABEL.search(prefix):
+        return False
+    groups = [len(part) for part in re.findall(r"\d+", phone)]
+    formatted = groups == [3, 4] or (
+        len(groups) >= 3 and all(1 <= size <= 4 for size in groups) and groups[-1] in (3, 4)
+    )
+    return explicit or phone.startswith("+") or formatted or bool(_PHONE_LABEL.search(prefix))
 
 
 def _json_people(value, owners: list[dict], *, founder=False):
@@ -60,7 +82,8 @@ def extract_contacts(html: str, url: str) -> dict:
             pass
     for tag in soup(["script", "style", "noscript", "template"]):
         tag.decompose()
-    text = " ".join(soup.stripped_strings)
+    text_parts = list(soup.stripped_strings)
+    text = " ".join(text_parts)
     links = [a["href"] for a in soup.select("a[href]")]
     email_text = text + "\n" + "\n".join(unquote(href) for href in links if href.lower().startswith("mailto:"))
     host = domain(url)
@@ -69,9 +92,19 @@ def extract_contacts(html: str, url: str) -> dict:
         mailbox_host = email.rsplit("@", 1)[1]
         if mailbox_host == host or mailbox_host.endswith("." + host):
             result["emails"].append(email)
-    # A tel link is direct site evidence; text candidates need seven displayed digits.
-    phones = [unquote(href[4:]).split(";", 1)[0].split("?", 1)[0].strip() for href in links if href.lower().startswith("tel:")]
-    phones.extend(match.group().strip() for match in _PHONE.finditer(text))
+    # A tel link is direct evidence. Scan separate visible text nodes so unrelated
+    # copyright years, addresses and identifiers cannot join into a phone number.
+    phones = []
+    for href in links:
+        if href.lower().startswith("tel:"):
+            phone = unquote(href[4:]).split(";", 1)[0].split("?", 1)[0].strip()
+            if _phone(phone, explicit=True):
+                phones.append(phone)
+    for part in text_parts:
+        for match in _PHONE.finditer(part):
+            phone = match.group().strip()
+            if _phone(phone, prefix=part[max(0, match.start() - 40):match.start()]):
+                phones.append(phone)
     seen_digits = set()
     for phone in phones:
         digits = re.sub(r"\D", "", phone)
@@ -79,9 +112,10 @@ def extract_contacts(html: str, url: str) -> dict:
             seen_digits.add(digits)
             result["phones"].append(phone)
     for href in links:
-        link = urljoin(url, href)
         try:
+            link = urljoin(url, href)
             parsed = urlsplit(link)
+            parsed.port
         except ValueError:
             continue
         social_host = (parsed.hostname or "").lower().rstrip(".")
