@@ -6,6 +6,10 @@ import importlib
 from pathlib import Path
 
 import httpx
+from fastapi.testclient import TestClient
+
+from shared.config import get_settings
+from tiktok.main import app
 
 from shared.proxy_pool import ProxyPool
 from tiktok.parse import profile
@@ -48,3 +52,20 @@ def test_twenty_link_batch_pauses_after_four_blocked_links(monkeypatch):
     assert result["proxy_bytes"] == 7 * len(good) + 10 * len(login)
     assert len(set(sessions)) == len(sessions)
     assert all(httpx.Proxy(url).raw_auth[1].startswith(b"p@ss:word_session-") for url in sessions)
+
+    # The paid route must preserve partial results as HTTP 200 and charge only reads.
+    monkeypatch.setenv("GATEWAY_SECRET", "capture-batch-gateway")
+    get_settings.cache_clear()
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/profiles", json={"links": links},
+                headers={"X-Seren-Gateway-Secret": "capture-batch-gateway"},
+            )
+        assert response.status_code == 200
+        assert response.json()["data"] == result
+        assert response.json()["billing"] == {
+            "items": 7, "unit_price": "0.0037", "cost": "0.0259",
+        }
+    finally:
+        get_settings.cache_clear()
