@@ -13,6 +13,7 @@
 | **Docs** | 8004 | `https://docs.googleapis.com/v1` |
 | **Sheets** | 8005 | `https://sheets.googleapis.com/v4` |
 | **Contacts** | 8006 | `https://people.googleapis.com/v1` |
+| **tech-stack** | 8009 | Public website technologies (`tech_stack/`) |
 | **nano-banana** | 8012 | `https://generativelanguage.googleapis.com/v1beta` |
 
 ## Architecture
