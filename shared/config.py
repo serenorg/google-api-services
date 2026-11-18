@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     gateway_secret: str = ""
     google_ai_studio_api_key: str = ""
     gemini_image_model: str = "gemini-3-pro-image-preview"
+    youtube_api_key: str = ""
 
     # Google API base URLs
     gmail_api_base: str = "https://gmail.googleapis.com/gmail/v1"
