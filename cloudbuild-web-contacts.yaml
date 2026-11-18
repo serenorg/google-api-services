@@ -1,0 +1,29 @@
+# ABOUTME: Builds, pushes and deploys the exact web contacts service commit.
+# ABOUTME: Binds the gateway credential from Secret Manager on Cloud Run.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-web-contacts:$COMMIT_SHA'
+      - '-f'
+      - 'web_contacts/Dockerfile'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-web-contacts:$COMMIT_SHA'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'seren-web-contacts'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-web-contacts:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--port=8008'
+      - '--allow-unauthenticated'
+      - '--set-secrets=GATEWAY_SECRET=web-contacts-gateway-secret:latest'
+      - '--quiet'
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/google-api-services/seren-web-contacts:$COMMIT_SHA'
