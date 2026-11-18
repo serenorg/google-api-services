@@ -19,17 +19,17 @@ from decimal import Decimal
 def test_extract_real_business_pages():
     fixtures = Path(__file__).parent / "fixtures"
     examples = (
-        ("heritage850", "https://www.heritage850.com/about-us", "hello@heritage850.com", "8509077500", "instagram", "Lance Rezmer"),
-        ("larsonplumbing", "https://www.larsonplumbing.net/about-us", "info@larsonplumbing.net", "8132420911", "facebook", "Chris Larson"),
+        ("heritage850", "https://www.heritage850.com/about-us", "hello@heritage850.com", "8509077500", "instagram", {"Lance Rezmer", "Hannah Rowland"}),
+        ("larsonplumbing", "https://www.larsonplumbing.net/about-us", "info@larsonplumbing.net", "8132420911", "facebook", {"Chris Larson", "Vonda Larson"}),
     )
     results = []
-    for filename, url, email, phone, platform, owner in examples:
+    for filename, url, email, phone, platform, owners in examples:
         html = (fixtures / (filename + ".html")).read_text()
         found = extract_contacts(html, url)
         assert email in found["emails"]
         assert phone in [re.sub(r"\D", "", value) for value in found["phones"]]
         assert found["social_links"][platform]
-        assert owner in [person["name"] for person in found["owners"]]
+        assert {person["name"] for person in found["owners"]} == owners
         assert all(address.endswith("@" + domain(url)) for address in found["emails"])
         soup = BeautifulSoup(html, "html.parser")
         links = site_links([a["href"] for a in soup.select("a[href]")], url)

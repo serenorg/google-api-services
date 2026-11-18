@@ -14,10 +14,11 @@ _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za
 _PHONE = re.compile(r"(?<![\w\d])\+?\d[\d ()\u00a0.\-]{5,}\d(?![\w\d])")
 _NAME = r"[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:['’\-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]+)*\s+[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+(?:['’\-][A-ZÀ-ÖØ-Þ]?[a-zà-öø-ÿ]+)*"
 _ROLE = r"(?i:Owner|Founder|CEO|President)"
-_GAP = r"\s*(?:[,|:/–—\-]\s*)?(?:(?i:and|&|of|co-founder)\s+)?"
+_GAP = r"\s*(?:[,|:/–—\-]\s*)?"
 _OWNER_PATTERNS = (
     re.compile(rf"\b(?P<name>{_NAME}){_GAP}(?P<role>{_ROLE})\b"),
-    re.compile(rf"\b(?P<role>{_ROLE}){_GAP}(?P<name>{_NAME})\b"),
+    # Pipes and conjunctions after a role introduce other titles or descriptions.
+    re.compile(rf"\b(?P<role>{_ROLE})\s*(?:[:,–—\-]\s*)?(?P<name>{_NAME})\b"),
 )
 _SOCIAL_HOSTS = {
     "facebook.com": "facebook", "instagram.com": "instagram",
