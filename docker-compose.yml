@@ -132,6 +132,24 @@ services:
       timeout: 10s
       retries: 3
 
+  tiktok:
+    build:
+      context: .
+      dockerfile: tiktok/Dockerfile
+    ports:
+      - "8010:8010"
+    environment:
+      - GATEWAY_SECRET=${GATEWAY_SECRET:-}
+      - PROXY_USERNAME=${PROXY_USERNAME:-}
+      - PROXY_PASSWORD=${PROXY_PASSWORD:-}
+      - PROXY_HOST=${PROXY_HOST:-}
+      - PROXY_PORT=${PROXY_PORT:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   postgres:
     image: postgres:15-alpine
     environment:
